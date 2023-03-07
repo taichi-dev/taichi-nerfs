@@ -63,8 +63,15 @@ Place your video in `data` folder and pass the video path to the script. There a
 Using [Taichi AOT](https://docs.taichi-lang.org/docs/tutorial), you can easily deploy a NeRF rendering pipeline on any mobile devices!
 
 <p align="center">
-<img src="assets/NeRF_on_iPad.gif" width="200">
+<img src="assets/NeRF_on_iPad.gif" width="200"> 
+<img src="assets/NeRF_iPhone14_Pro_Max.gif" width="200">
 </p>
+
+We're able to acheive real-time interactive on iOS devices.
+
+| Performance | iPad Pro (M1) | iPhone 14 Pro Max | iPhone 14 |
+| --- | --- | --- | --- |
+| Taichi Instant NGP | 22.4 fps | 18 fps | 13.5 fps |
 
 Stay tuned, more cool demos are on the way! For business inquiries, please reach out us at `contact@taichi.graphics`.
 
