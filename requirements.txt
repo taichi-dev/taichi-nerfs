@@ -6,5 +6,4 @@ opencv-python>=4.6.0.66
 imageio
 imageio-ffmpeg
 scipy
-taichi
 tensorboard
