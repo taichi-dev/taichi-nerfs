@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 export ROOT_DIR="./360_v2/"
 export DOWNSAMPLE=0.25 # to avoid OOM
 
