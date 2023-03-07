@@ -65,8 +65,8 @@ class NeRFSystem(LightningModule):
 
     def forward(self, batch, split):
         if split == 'train':
-            poses = self.poses[batch['img_idxs']]
-            directions = self.directions[batch['pix_idxs']]
+            poses = self.poses[batch['img_idxs'].type(torch.long)]
+            directions = self.directions[batch['pix_idxs'].type(torch.long)]
         else:
             poses = batch['pose']
             directions = self.directions
