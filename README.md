@@ -9,7 +9,7 @@ A PyTorch + Taichi implementation of [instant-ngp](https://nvlabs.github.io/inst
 ## Installation
 
 1. Install PyTorch by `python -m pip install torch torchvision --extra-index-url https://download.pytorch.org/whl/cu116` (update the url with your installed CUDA Toolkit version number).
-2. Install taichi nightly via `pip install -i https://pypi.taichi.graphics/simple/ taichi-nightly`.
+2. Install taichi nightly via `pip install -U pip && pip install -i https://pypi.taichi.graphics/simple/ taichi-nightly==1.5.0.post20230305`.
 3. Install requirements by `pip install -r requirements.txt`.
 4. If you plan to train with your own video, please install `colmap` via `sudo apt install colmap` or follow instructions at https://colmap.github.io/install.html.
 
@@ -26,11 +26,21 @@ We also provide a script to train the Lego scene from scratch, and display an in
 ./scripts/train_nsvf_lego.sh
 ```
 
+<p align="center">
+<img src="assets/ngp_gui.gif" width="400">
+</p>
+
 Performance is measured on a Ubuntu 20.04 with an RTX3090 GPU.
 
 | Scene | avg PSNR | Training Time(20 epochs) |   GPU   |
 | :---: | :------: | :----------------------: | :-----: |
 | Lego  |   35.0   |           208s           | RTX3090 |
+
+To reach the best performance, here are the steps to follow:
+1. Your work station is running on Linux and has RTX 3090 Graphics card
+2. Follow the steps in [Installation Section](https://github.com/taichi-dev/taichi-nerfs#installation)
+3. Uncomment `--half2_opt` to enable half2 optimization in the script, then `sh scripts/train_nsvf_lego.sh`. For now, half2 optimization is only supported on Linux with Graphics Card Architecture >Pascal.
+
 
 ### 360_v2 dataset
 

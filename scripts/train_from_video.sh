@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-VIDEO_FILE='IMG_3117.MOV'
+VIDEO_FILE=''  # Put your video in data/ folder and update filename here
 SCALE=1 # choose from 1, 4, 8, 16, 64
 
 pushd data
