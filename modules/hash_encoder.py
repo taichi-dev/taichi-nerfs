@@ -173,6 +173,8 @@ class HashEncoder(torch.nn.Module):
         super(HashEncoder, self).__init__()
 
         self.per_level_scale = b
+        if batch_size < 2048:
+            batch_size = 2048
 
         # per_level_scale = 1.3195079565048218
         print("per_level_scale: ", b)
