@@ -7,7 +7,7 @@ A PyTorch + Taichi implementation of [instant-ngp](https://nvlabs.github.io/inst
 
 ## Installation
 1. Install PyTorch by `python -m pip install torch torchvision --extra-index-url https://download.pytorch.org/whl/cu116` (update the url with your installed CUDA Toolkit version number).
-2. Install taichi nightly via `pip install -i https://pypi.taichi.graphics/simple/ taichi-nightly==1.5.0.post20230305`.
+2. Install taichi nightly via `pip install -U pip && pip install -i https://pypi.taichi.graphics/simple/ taichi-nightly==1.5.0.post20230305`.
 3. Install requirements by `pip install -r requirements.txt`.
 4. If you plan to train with your own video, please install `colmap` via `sudo apt install colmap` or follow instructions at https://colmap.github.io/install.html.
 
