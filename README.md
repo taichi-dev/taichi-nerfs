@@ -48,10 +48,10 @@ Download [360 v2 dataset](http://storage.googleapis.com/gresearch/refraw360/360_
 ```
 ## Train with your own video
 
-Place your video in `data` folder and update `VIDEO_FILE` in the script below accordingly. Running this script will preprocess your video and start training a NeRF out of it:
+Place your video in `data` folder and pass the video path to the script. There are several key parameters for producing a sound dataset for NeRF training. For a real scene, `scale`  is recommended to set to 16. `video_fps` determines the number of images generated from the video, typically 150~200 images are sufficient. For a one minute video, 2 is a suitable number. Running this script will preprocess your video and start training a NeRF out of it:
 
 ```
-./scripts/train_from_video.sh
+./scripts/train_from_video.sh -v {path/to/your/video} -s {scale} -f {video_fps}
 ```
 
 ## [Preview] Mobile Deployment
