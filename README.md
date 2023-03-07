@@ -44,7 +44,7 @@ To reach the best performance, here are the steps to follow:
 
 ### 360_v2 dataset
 
-Download [360 v2 dataset](http://storage.googleapis.com/gresearch/refraw360/360_v2.zip) and unzip it. Please keep the folder name unchanged.
+Download [360 v2 dataset](http://storage.googleapis.com/gresearch/refraw360/360_v2.zip) and unzip it. Please keep the folder name unchanged. The default `batch_size=8192` takes up to 18GB RAM on a RTX3090. Please adjust `batch_size` according to your hardware spec. 
 
 ```bash
 ./scripts/train_360_v2_garden.sh
