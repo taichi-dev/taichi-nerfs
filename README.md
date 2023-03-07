@@ -1,5 +1,5 @@
 # Taichi NeRFs
-A PyTorch + Taichi implementation of [instant-ngp](https://nvlabs.github.io/instant-ngp/assets/mueller2022instant.pdf) NeRF training pipeline. 
+A PyTorch + Taichi implementation of [instant-ngp](https://nvlabs.github.io/instant-ngp/assets/mueller2022instant.pdf) NeRF training pipeline.
 
 <p align="center">
 <img src="assets/office.gif" width="200">
@@ -7,7 +7,7 @@ A PyTorch + Taichi implementation of [instant-ngp](https://nvlabs.github.io/inst
 
 ## Installation
 1. Install PyTorch by `python -m pip install torch torchvision --extra-index-url https://download.pytorch.org/whl/cu116` (update the url with your installed CUDA Toolkit version number).
-2. Install taichi nightly via `pip install -i https://pypi.taichi.graphics/simple/ taichi-nightly`. 
+2. Install taichi nightly via `pip install -i https://pypi.taichi.graphics/simple/ taichi-nightly==1.5.0.post20230305`.
 3. Install requirements by `pip install -r requirements.txt`.
 4. If you plan to train with your own video, please install `colmap` via `sudo apt install colmap` or follow instructions at https://colmap.github.io/install.html.
 
@@ -24,7 +24,11 @@ We also provide a script to train the Lego scene from scratch, and display an in
 ./scripts/train_nsvf_lego.sh
 ```
 
-Performance is measured on a Ubuntu 20.04 with an RTX3090 GPU. 
+<p align="center">
+<img src="assets/ngp_gui.gif" width="400">
+</p>
+
+Performance is measured on a Ubuntu 20.04 with an RTX3090 GPU.
 
 | Scene    | avg PSNR | Training Time(20 epochs)   | GPU     |
 | :---:     | :---:    | :---: | :---:   |
@@ -52,7 +56,7 @@ Place your video in `data` folder and update `VIDEO_FILE` in the script below ac
 
 ## [Preview] Mobile Deployment
 
-Using [Taichi AOT](https://docs.taichi-lang.org/docs/tutorial), you can easily deploy a NeRF rendering pipeline on any mobile devices! 
+Using [Taichi AOT](https://docs.taichi-lang.org/docs/tutorial), you can easily deploy a NeRF rendering pipeline on any mobile devices!
 
 <p align="center">
 <img src="assets/NeRF_on_iPad.gif" width="200">
@@ -61,12 +65,12 @@ Using [Taichi AOT](https://docs.taichi-lang.org/docs/tutorial), you can easily d
 Stay tuned, more cool demos are on the way! For business inquiries, please reach out us at `contact@taichi.graphics`.
 ## Frequently asked questions (FAQ)
 
-__Q:__ Is CUDA the only supported Taichi backend? How about vulkan backend? 
+__Q:__ Is CUDA the only supported Taichi backend? How about vulkan backend?
 
 __A:__ For the most efficient interop with PyTorch CUDA backend, training is mostly tested with Taichi CUDA backend. However it's pretty straightforward to switch to Taichi vulkan backend if interop is removed, check out this awesome [taichi-ngp inference demo](https://github.com/taichi-dev/taichi/blob/master/python/taichi/examples/rendering/taichi_ngp.py)!
 
 __Q:__ I got OOM(Out of Memory) error on my GPU, what can I do?
-__A:__ Reduce `batch_size` passed to `train.py`! By default it's `8192` which fits a RTX3090, you should reduce this accordingly. For instance, `batch_size=2048` is recommended on a RTX3060Ti. 
+__A:__ Reduce `batch_size` passed to `train.py`! By default it's `8192` which fits a RTX3090, you should reduce this accordingly. For instance, `batch_size=2048` is recommended on a RTX3060Ti.
 
 # Acknowledgement
 
