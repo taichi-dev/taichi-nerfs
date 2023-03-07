@@ -1,4 +1,5 @@
 # Taichi NeRFs
+
 A PyTorch + Taichi implementation of [instant-ngp](https://nvlabs.github.io/instant-ngp/assets/mueller2022instant.pdf) NeRF training pipeline.
 
 <p align="center">
@@ -6,6 +7,7 @@ A PyTorch + Taichi implementation of [instant-ngp](https://nvlabs.github.io/inst
 </p>
 
 ## Installation
+
 1. Install PyTorch by `python -m pip install torch torchvision --extra-index-url https://download.pytorch.org/whl/cu116` (update the url with your installed CUDA Toolkit version number).
 2. Install taichi nightly via `pip install -U pip && pip install -i https://pypi.taichi.graphics/simple/ taichi-nightly==1.5.0.post20230305`.
 3. Install requirements by `pip install -r requirements.txt`.
@@ -20,7 +22,7 @@ Download [Synthetic NeRF dataset](https://dl.fbaipublicfiles.com/nsvf/dataset/Sy
 
 We also provide a script to train the Lego scene from scratch, and display an interactive GUI at the end of the training.
 
-```
+```bash
 ./scripts/train_nsvf_lego.sh
 ```
 
@@ -30,9 +32,9 @@ We also provide a script to train the Lego scene from scratch, and display an in
 
 Performance is measured on a Ubuntu 20.04 with an RTX3090 GPU.
 
-| Scene    | avg PSNR | Training Time(20 epochs)   | GPU     |
-| :---:     | :---:    | :---: | :---:   |
-| Lego | 35.0    | 208s  | RTX3090 |
+| Scene | avg PSNR | Training Time(20 epochs) |   GPU   |
+| :---: | :------: | :----------------------: | :-----: |
+| Lego  |   35.0   |           208s           | RTX3090 |
 
 To reach the best performance, here are the steps to follow:
 1. Your work station is running on Linux and has RTX 3090 Graphics card
@@ -41,11 +43,13 @@ To reach the best performance, here are the steps to follow:
 
 
 ### 360_v2 dataset
+
 Download [360 v2 dataset](http://storage.googleapis.com/gresearch/refraw360/360_v2.zip) and unzip it. Please keep the folder name unchanged.
 
-```
+```bash
 ./scripts/train_360_v2_garden.sh
 ```
+
 ## Train with your own video
 
 Place your video in `data` folder and pass the video path to the script. There are several key parameters for producing a sound dataset for NeRF training. For a real scene, `scale`  is recommended to set to 16. `video_fps` determines the number of images generated from the video, typically 150~200 images are sufficient. For a one minute video, 2 is a suitable number. Running this script will preprocess your video and start training a NeRF out of it:
@@ -63,6 +67,7 @@ Using [Taichi AOT](https://docs.taichi-lang.org/docs/tutorial), you can easily d
 </p>
 
 Stay tuned, more cool demos are on the way! For business inquiries, please reach out us at `contact@taichi.graphics`.
+
 ## Frequently asked questions (FAQ)
 
 __Q:__ Is CUDA the only supported Taichi backend? How about vulkan backend?
@@ -70,6 +75,7 @@ __Q:__ Is CUDA the only supported Taichi backend? How about vulkan backend?
 __A:__ For the most efficient interop with PyTorch CUDA backend, training is mostly tested with Taichi CUDA backend. However it's pretty straightforward to switch to Taichi vulkan backend if interop is removed, check out this awesome [taichi-ngp inference demo](https://github.com/taichi-dev/taichi/blob/master/python/taichi/examples/rendering/taichi_ngp.py)!
 
 __Q:__ I got OOM(Out of Memory) error on my GPU, what can I do?
+
 __A:__ Reduce `batch_size` passed to `train.py`! By default it's `8192` which fits a RTX3090, you should reduce this accordingly. For instance, `batch_size=2048` is recommended on a RTX3060Ti.
 
 # Acknowledgement

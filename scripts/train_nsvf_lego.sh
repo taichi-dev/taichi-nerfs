@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 export DATA_DIR=./Synthetic_NeRF
 
 python3 train.py \
