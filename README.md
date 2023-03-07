@@ -39,7 +39,7 @@ Performance is measured on a Ubuntu 20.04 with an RTX3090 GPU.
 To reach the best performance, here are the steps to follow:
 1. Your work station is running on Linux and has RTX 3090 Graphics card
 2. Follow the steps in [Installation Section](https://github.com/taichi-dev/taichi-nerfs#installation)
-3. Uncomment `--half2_opt` to enable half2 optimization in the script, then `sh scripts/train_nsvf_lego.sh`. For now, half2 optimization is only supported on Linux with Graphics Card Architecture >Pascal.
+3. Uncomment `--half2_opt` to enable half2 optimization in the script, then `./scripts/train_nsvf_lego.sh`. For now, half2 optimization is only supported on Linux with Graphics Card Architecture >Pascal.
 
 
 ### 360_v2 dataset
