@@ -170,7 +170,7 @@ class NGPGUI:
     def render(self):
 
         window = ti.ui.Window(
-            'ngp_pl',
+            'taichi_ngp',
             (self.W, self.H),
         )
         canvas = window.get_canvas()
