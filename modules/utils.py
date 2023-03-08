@@ -1,6 +1,8 @@
 import taichi as ti
 import torch
 from taichi.math import uvec3
+import numpy as np
+import cv2
 
 taichi_block_size = 128
 
