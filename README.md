@@ -75,6 +75,9 @@ We're able to acheive real-time interactive on iOS devices.
 
 Stay tuned, more cool demos are on the way! For business inquiries, please reach out us at `contact@taichi.graphics`.
 
+## Text to 3D 
+Taichi-nerf serves as a new backend of the text-to-3D project [stable-dreamfusion](https://github.com/ashawkey/stable-dreamfusion).
+
 ## Frequently asked questions (FAQ)
 
 __Q:__ Is CUDA the only supported Taichi backend? How about vulkan backend?
