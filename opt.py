@@ -12,7 +12,7 @@ def get_opts():
     parser.add_argument('--dataset_name',
                         type=str,
                         default='nsvf',
-                        choices=['nerf', 'nsvf', 'colmap'],
+                        choices=['nerf', 'nsvf', 'colmap', 'ngp'],
                         help='which dataset to train/test')
     parser.add_argument('--split',
                         type=str,
