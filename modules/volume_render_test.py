@@ -3,13 +3,13 @@ import taichi as ti
 
 @ti.kernel
 def composite_test(
-    sigmas: ti.types.ndarray(field_dim=2), rgbs: ti.types.ndarray(field_dim=3),
-    deltas: ti.types.ndarray(field_dim=2), ts: ti.types.ndarray(field_dim=2),
-    hits_t: ti.types.ndarray(field_dim=2),
-    alive_indices: ti.types.ndarray(field_dim=1), T_threshold: float,
-    N_eff_samples: ti.types.ndarray(field_dim=1),
-    opacity: ti.types.ndarray(field_dim=1),
-    depth: ti.types.ndarray(field_dim=1), rgb: ti.types.ndarray(field_dim=2)):
+    sigmas: ti.types.ndarray(ndim=2), rgbs: ti.types.ndarray(ndim=3),
+    deltas: ti.types.ndarray(ndim=2), ts: ti.types.ndarray(ndim=2),
+    hits_t: ti.types.ndarray(ndim=2),
+    alive_indices: ti.types.ndarray(ndim=1), T_threshold: float,
+    N_eff_samples: ti.types.ndarray(ndim=1),
+    opacity: ti.types.ndarray(ndim=1),
+    depth: ti.types.ndarray(ndim=1), rgb: ti.types.ndarray(ndim=2)):
 
     for n in alive_indices:
         samples = N_eff_samples[n]
