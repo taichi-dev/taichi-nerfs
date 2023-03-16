@@ -67,7 +67,7 @@ Using [Taichi AOT](https://docs.taichi-lang.org/docs/tutorial), you can easily d
 <img src="assets/NeRF_iPhone14_Pro_Max.gif" width="200">
 </p>
 
-We're able to acheive real-time interactive on iOS devices.
+We're able to achieve real-time interactive on iOS devices.
 
 | Performance | iPad Pro (M1) | iPhone 14 Pro Max | iPhone 14 |
 | --- | --- | --- | --- |
