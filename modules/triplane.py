@@ -34,167 +34,90 @@ def ti_copy_field_array(data1: ti.template(), data2: ti.types.ndarray()):
     for I in ti.grouped(data1):
         data1[I] = data2[I]
 
-
+tf_vec12 = ti.types.vector(n=12, dtype=data_type)
+tf_vec9 = ti.types.vector(n=9, dtype=data_type)
 tf_vec8 = ti.types.vector(n=8, dtype=data_type)
 tf_vec4 = ti.types.vector(n=4, dtype=data_type)
 tf_vec3 = ti.types.vector(n=3, dtype=data_type)
+ivec6 = ti.types.vector(n=6, dtype=ti.i32)
 ivec2 = ti.types.vector(n=2, dtype=ti.i32)
-feat_dim = 4
+feat_dim = 2
+levels = 4
 
 @ti.kernel
 def fetch_kernel(
         xyzs: ti.template(), 
         plane_embedding: ti.template(),
-        grid_embedding: ti.template(),
+        plane_scales: ti.template(),
         xyzs_embedding: ti.template(), 
         B: ti.i32,
-        grid_res: ti.i32,
         plane_res: ti.i32,):
 
     # get hash table embedding
-    for i in ti.ndrange(B):
+    ti.loop_config(block_dim=32)
+    for i, sn in ti.ndrange(B, feat_dim*levels):
+        j = sn // levels
+        level = sn % levels
         xyz = ti.Vector([xyzs[i, 0], xyzs[i, 1], xyzs[i, 2]])
-
-        grid_feat = tf_vec4(0.)
-        xy_plane_feat = tf_vec4(0.)
-        yz_plane_feat = tf_vec4(0.)
-        zx_plane_feat = tf_vec4(0.)
+        plane_scale = plane_scales[level]
+        xy_plane_feat = 0.
+        yz_plane_feat = 0.
+        zx_plane_feat = 0.
 
         # plane query
-        pos = xyz * (plane_res-1) + 0.5
+        pos = xyz * (plane_scale-1) + 0.5
         pos_grid_uint = ti.cast(ti.floor(pos), ti.int32)
         pos -= pos_grid_uint
 
-        xy_pos = ti.Vector([pos[0], pos[1]])
-        yz_pos = ti.Vector([pos[1], pos[2]])
-        zx_pos = ti.Vector([pos[2], pos[0]])
-
-        xy_pos_grid_uint = ti.Vector([pos_grid_uint[0], pos_grid_uint[1]])
-        yz_pos_grid_uint = ti.Vector([pos_grid_uint[1], pos_grid_uint[2]])
-        zx_pos_grid_uint = ti.Vector([pos_grid_uint[2], pos_grid_uint[0]])
+        pos_fuse = ti.Vector([
+            pos[0], pos[1], 
+            pos[1], pos[2], 
+            pos[2], pos[0]
+        ])
+        pos_grid_uint_fuse = ti.Vector([
+            pos_grid_uint[0], pos_grid_uint[1], 
+            pos_grid_uint[1], pos_grid_uint[2], 
+            pos_grid_uint[2], pos_grid_uint[0]]
+        )
 
         for idx in ti.static(range(4)):
-            xy_w = 1.
-            yz_w = 1.
-            zx_w = 1.
-            xy_pos_grid_local = ivec2(0)
-            yz_pos_grid_local = ivec2(0)
-            zx_pos_grid_local = ivec2(0)
+            w = tf_vec3(1.)
+            pos_grid_local = ivec6(0)
 
             for d in ti.static(range(2)):
                 if (idx & (1 << d)) == 0:
-                    xy_pos_grid_local[d] = xy_pos_grid_uint[d]
-                    yz_pos_grid_local[d] = yz_pos_grid_uint[d]
-                    zx_pos_grid_local[d] = zx_pos_grid_uint[d]
-                    xy_w *= 1 - xy_pos[d]
-                    yz_w *= 1 - yz_pos[d]
-                    zx_w *= 1 - zx_pos[d]
+                    pos_grid_local[d::2] = pos_grid_uint_fuse[d::2]
+                    w *= 1 - pos_fuse[d::2]
                 else:
-                    xy_pos_grid_local[d] = xy_pos_grid_uint[d] + 1
-                    yz_pos_grid_local[d] = yz_pos_grid_uint[d] + 1
-                    zx_pos_grid_local[d] = zx_pos_grid_uint[d] + 1
-                    xy_w *= xy_pos[d]
-                    yz_w *= yz_pos[d]
-                    zx_w *= zx_pos[d]
+                    pos_grid_local[d::2] = pos_grid_uint_fuse[d::2] + 1
+                    w *= pos_fuse[d::2]
 
-            xy_index = 0
-            yz_index = 0
-            zx_index = 0
+
+            # convert pos_grid_local to high res
+            pos_grid_local = ti.cast(pos_grid_local / plane_scale * plane_res, ti.i32)
+
+            index = ivec3(0)
             stride = 1
             for i in ti.static(range(2)):
-                xy_index += xy_pos_grid_local[i] * stride
-                yz_index += yz_pos_grid_local[i] * stride
-                zx_index += zx_pos_grid_local[i] * stride
+                index += pos_grid_local[i::2] * stride
                 stride *= plane_res
 
-            xy_index_table = xy_index * feat_dim
-            yz_index_table = plane_res**2*feat_dim + yz_index * feat_dim
-            zx_index_table = plane_res**2*feat_dim*2 + zx_index * feat_dim
-            for j in ti.static(range(feat_dim)):
-                xy_plane_feat[j] += xy_w * plane_embedding[xy_index_table + j]
-                yz_plane_feat[j] += yz_w * plane_embedding[yz_index_table + j]
-                zx_plane_feat[j] += zx_w * plane_embedding[zx_index_table + j]
+            xy_index_table = index[0] * feat_dim
+            yz_index_table = plane_res**2*feat_dim + index[1] * feat_dim
+            zx_index_table = plane_res**2*feat_dim*2 + index[2] * feat_dim
 
+            xy_plane_feat += w[0] * plane_embedding[xy_index_table + j]
+            yz_plane_feat += w[1] * plane_embedding[yz_index_table + j]
+            zx_plane_feat += w[2] * plane_embedding[zx_index_table + j]
 
-        # grid query
-        pos = xyz * (grid_res - 1) + 0.5
-        pos_grid_uint = ti.cast(ti.floor(pos), ti.int32)
-        pos -= pos_grid_uint
+        sum_feat = xy_plane_feat * yz_plane_feat * zx_plane_feat
 
-        for idx in ti.static(range(8)):
-            w = 1.
-            pos_grid_local = ivec3(0)
+        level_offset = level*(feat_dim*4)
+        xyzs_embedding[i, j + level_offset] = xy_plane_feat
+        xyzs_embedding[i, j + feat_dim + level_offset] = yz_plane_feat
+        xyzs_embedding[i, j + feat_dim*2 + level_offset] = zx_plane_feat
+        xyzs_embedding[i, j + feat_dim*3 + level_offset] = sum_feat
 
-            for d in ti.static(range(3)):
-                if (idx & (1 << d)) == 0:
-                    pos_grid_local[d] = pos_grid_uint[d]
-                    w *= 1 - pos[d]
-                else:
-                    pos_grid_local[d] = pos_grid_uint[d] + 1
-                    w *= pos[d]
-
-            index = 0
-            stride = 1
-            for i in ti.static(range(3)):
-                index += pos_grid_local[i] * stride
-                stride *= grid_res
-
-            index_table = index * feat_dim
-            for j in ti.static(range(feat_dim)):
-                grid_feat[j] += w * grid_embedding[index_table + j]
-
-
-        for j in ti.static(range(feat_dim)):
-            xyzs_embedding[i, j] = xy_plane_feat[j]
-            xyzs_embedding[i, j + feat_dim] = yz_plane_feat[j]
-            xyzs_embedding[i, j + feat_dim*2] = zx_plane_feat[j]
-            xyzs_embedding[i, j + feat_dim*3] = grid_feat[j]
-
-@ti.kernel
-def hash_encode_kernel_half2(
-        xyzs: ti.template(), table: ti.template(),
-        xyzs_embedding: ti.template(), hash_map_indicator: ti.template(),
-        hash_map_sizes_field: ti.template(), offsets: ti.template(), B: ti.i32,
-        per_level_scale: ti.f16):
-
-    # get hash table embedding
-    ti.loop_config(block_dim=32)
-    for i, level in ti.ndrange(B, 16):
-        xyz = ti.Vector([xyzs[i, 0], xyzs[i, 1], xyzs[i, 2]])
-
-        scale = 16 * ti.exp(level * ti.log(per_level_scale)) - 1.0
-        resolution = ti.cast(ti.ceil(scale), ti.uint32) + 1
-
-        offset = offsets[level]
-
-        pos = xyz * scale + 0.5
-        pos_grid_uint = ti.cast(ti.floor(pos), ti.uint32)
-        pos -= pos_grid_uint
-
-        indicator = hash_map_indicator[level]
-        map_size = hash_map_sizes_field[level]
-
-        local_feature = half2(0.0)
-        for idx in ti.static(range(8)):
-            w = ti.f32(1.0)
-            pos_grid_local = uvec3(0)
-
-            for d in ti.static(range(3)):
-                if (idx & (1 << d)) == 0:
-                    pos_grid_local[d] = pos_grid_uint[d]
-                    w *= 1 - pos[d]
-                else:
-                    pos_grid_local[d] = pos_grid_uint[d] + 1
-                    w *= pos[d]
-
-            index = grid_pos2hash_index(indicator, pos_grid_local, resolution,
-                                        map_size)
-
-            index_table = offset + index
-            index_table_int = ti.cast(index_table, ti.int32)
-
-            local_feature += w * table[index_table_int]
-        xyzs_embedding[i, level] = local_feature
 
 
 class TriPlaneEncoder(torch.nn.Module):
@@ -208,22 +131,24 @@ class TriPlaneEncoder(torch.nn.Module):
         if batch_size < 2048:
             batch_size = 2048
 
-        self.grid_res = 256
-        self.grid_feat = feat_dim
         self.plane_res = 1024
+
+        self.plane_scales = ti.field(dtype=data_type,shape=(levels, ))
+        b = np.exp(np.log(self.plane_res / 128) / (levels - 1))
+        for i in range(levels):
+            self.plane_scales[i] = int(
+                np.ceil(
+                    128 * np.exp(i * np.log(b)) - 1.0
+                )
+            ) + 1
         self.plane_feat = feat_dim
 
         self.plane_embedding = torch.nn.Parameter(
             torch.zeros((self.plane_res**2) * 3 * self.plane_feat, dtype=torch_type),
             requires_grad=True
         )
-        self.grid_embedding = torch.nn.Parameter(
-            torch.zeros(self.grid_res**3 * self.grid_feat, dtype=torch_type),
-            requires_grad=True
-        )
                         
         random_initialize(self.plane_embedding)
-        random_initialize(self.grid_embedding)
 
         if half2_opt:
             assert self.total_hash_size % 2 == 0
@@ -238,16 +163,11 @@ class TriPlaneEncoder(torch.nn.Module):
             self.ti2torch_grad = ti2torch_grad_vec
             self.torch2ti_grad = torch2ti_grad_vec
 
-            self._hash_encode_kernel = hash_encode_kernel_half2
+            self._encode_kernel = hash_encode_kernel_half2
         else:
             self.plane_embedding_fields = ti.field(
                 data_type, 
                 shape=(self.plane_res**2 * 3 * self.plane_feat, ), 
-                needs_grad=True
-            )
-            self.grid_embedding_fields = ti.field(
-                data_type,
-                shape=(self.grid_res**3 * self.grid_feat, ),
                 needs_grad=True
             )
             self.output_fields = ti.field(dtype=data_type,
@@ -272,13 +192,6 @@ class TriPlaneEncoder(torch.nn.Module):
             )
         )
         self.register_buffer(
-            'grid_grad', 
-            torch.zeros(
-                self.grid_res**3 * self.grid_feat, 
-                dtype=torch_type
-            )
-        )
-        self.register_buffer(
             'output_embedding',
             torch.zeros(batch_size * 1024, 32, dtype=torch_type))
 
@@ -286,21 +199,19 @@ class TriPlaneEncoder(torch.nn.Module):
 
             @staticmethod
             @custom_fwd(cast_inputs=torch_type)
-            def forward(ctx, input_pos, plane_params, grid_params):
+            def forward(ctx, input_pos, plane_params):
                 output_embedding = self.output_embedding[:input_pos.
                                                          shape[0]].contiguous(
                                                          )
                 torch2ti(self.input_fields, input_pos.contiguous())
                 self.torch2ti(self.plane_embedding_fields, plane_params.contiguous())
-                self.torch2ti(self.grid_embedding_fields, grid_params.contiguous())
 
                 self._encode_kernel(
                     self.input_fields,
                     self.plane_embedding_fields,
-                    self.grid_embedding_fields,
+                    self.plane_scales,
                     self.output_fields,
                     input_pos.shape[0],
-                    self.grid_res,
                     self.plane_res,
                 )
                 self.ti2torch(self.output_fields, output_embedding)
@@ -317,23 +228,19 @@ class TriPlaneEncoder(torch.nn.Module):
                 self._encode_kernel.grad(
                     self.input_fields,
                     self.plane_embedding_fields,
-                    self.grid_embedding_fields,
+                    self.plane_scales,
                     self.output_fields,
                     doutput.shape[0],
-                    self.grid_res,
                     self.plane_res,
                 )
                 self.ti2torch_grad(self.plane_embedding_fields,
                                    self.plane_grad.contiguous())
-                self.ti2torch_grad(self.grid_embedding_fields,
-                                   self.grid_grad.contiguous())
-                return None, self.plane_grad, self.grid_grad
+                return None, self.plane_grad
 
         self._module_function = _module_function
 
     def zero_grad(self):
         self.plane_embedding_fields.grad.fill(0.)
-        self.grid_embedding_fields.grad.fill(0.)
 
     def forward(self, positions):
-        return self._module_function.apply(positions, self.plane_embedding, self.grid_embedding)
+        return self._module_function.apply(positions, self.plane_embedding)
