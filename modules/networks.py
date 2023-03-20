@@ -8,6 +8,7 @@ from torch import nn
 from torch.cuda.amp import custom_bwd, custom_fwd
 
 from .hash_encoder import HashEncoder
+from .triplane import TriPlaneEncoder
 from .ray_march import RayMarcher
 from .rendering import NEAR_DISTANCE
 from .spherical_harmonics import DirEncoder
@@ -64,9 +65,17 @@ class TaichiNGP(nn.Module):
 
         self.ray_marching = RayMarcher(args.batch_size)
 
-        self.hash_encoder = HashEncoder(self.b,
-                                        args.batch_size,
-                                        half2_opt=args.half2_opt)
+        if args.encoder_type == 'hash':
+            self.pos_encoder = HashEncoder(
+                self.b,
+                args.batch_size,
+                half2_opt=args.half2_opt
+            )
+        elif args.encoder_type == 'triplane':
+            self.pos_encoder = TriPlaneEncoder(
+                args.batch_size,
+                half2_opt=args.half2_opt
+            )
 
         self.dir_encoder = DirEncoder(args.batch_size)
 
@@ -114,7 +123,7 @@ class TaichiNGP(nn.Module):
             sigmas: (N)
         """
         x = (x - self.xyz_min) / (self.xyz_max - self.xyz_min)
-        embedding = self.hash_encoder(x)
+        embedding = self.pos_encoder(x)
         h = self.xyz_encoder(embedding)
         sigmas = TruncExp.apply(h[:, 0])
         if return_feat:
