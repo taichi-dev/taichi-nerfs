@@ -150,22 +150,42 @@ class VolumeRenderer(torch.nn.Module):
         # self.T = ti.field(dtype=data_type, shape=(8192, 1024), needs_grad=True)
 
         # preallocate tensor
-        self.register_buffer('total_samples',
-                             torch.zeros(batch_size, dtype=torch.int64))
-        self.register_buffer('rgb', torch.zeros(batch_size,
-                                                3,
-                                                dtype=torch_type))
-        self.register_buffer('opacity',
-                             torch.zeros(batch_size, dtype=torch_type))
-        self.register_buffer('depth', torch.zeros(batch_size,
-                                                  dtype=torch_type))
-        self.register_buffer('ws',
-                             torch.zeros(batch_size * 1024, dtype=torch_type))
-
-        self.register_buffer('sigma_grad',
-                             torch.zeros(batch_size * 1024, dtype=torch_type))
         self.register_buffer(
-            'rgb_grad', torch.zeros(batch_size * 1024, 3, dtype=torch_type))
+            'total_samples',
+            torch.zeros(batch_size, dtype=torch.int64),
+            persistent=False
+        )
+        self.register_buffer(
+            'rgb',
+            torch.zeros(batch_size, 3, dtype=torch_type),
+            persistent=False
+        )
+        self.register_buffer(
+            'opacity',
+            torch.zeros(batch_size, dtype=torch_type),
+            persistent=False
+        )
+        self.register_buffer(
+            'depth',
+            torch.zeros(batch_size, dtype=torch_type),
+            persistent=False
+        )
+        self.register_buffer(
+            'ws',
+            torch.zeros(batch_size * 1024, dtype=torch_type),
+            persistent=False
+        )
+
+        self.register_buffer(
+            'sigma_grad',
+            torch.zeros(batch_size * 1024, dtype=torch_type),
+            persistent=False
+        )
+        self.register_buffer(
+            'rgb_grad', torch.zeros(batch_size * 1024, 3, dtype=torch_type),
+            persistent=False
+        )
+        
 
         class _module_function(torch.autograd.Function):
 
