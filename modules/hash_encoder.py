@@ -244,10 +244,15 @@ class HashEncoder(torch.nn.Module):
                                      needs_grad=True)
 
         self.register_buffer(
-            'hash_grad', torch.zeros(self.total_hash_size, dtype=torch_type))
+            'hash_grad',
+            torch.zeros(self.total_hash_size, dtype=torch_type),
+            persistent=False
+        )
         self.register_buffer(
             'output_embedding',
-            torch.zeros(batch_size * 1024, 32, dtype=torch_type))
+            torch.zeros(batch_size * 1024, 32, dtype=torch_type),
+            persistent=False
+        )
 
         class _module_function(torch.autograd.Function):
 

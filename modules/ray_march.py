@@ -145,16 +145,31 @@ class RayMarcher(torch.nn.Module):
     def __init__(self, batch_size=8192):
         super(RayMarcher, self).__init__()
 
-        self.register_buffer('rays_a',
-                             torch.zeros(batch_size, 3, dtype=torch.int32))
         self.register_buffer(
-            'xyzs', torch.zeros(batch_size * 1024, 3, dtype=torch.float32))
+            'rays_a',
+            torch.zeros(batch_size, 3, dtype=torch.int32),
+            persistent=False
+        )
         self.register_buffer(
-            'dirs', torch.zeros(batch_size * 1024, 3, dtype=torch.float32))
+            'xyzs', 
+            torch.zeros(batch_size * 1024, 3, dtype=torch.float32),
+            persistent=False
+        )
         self.register_buffer(
-            'deltas', torch.zeros(batch_size * 1024, dtype=torch.float32))
+            'dirs', 
+            torch.zeros(batch_size * 1024, 3, dtype=torch.float32),
+            persistent=False
+        )
         self.register_buffer(
-            'ts', torch.zeros(batch_size * 1024, dtype=torch.float32))
+            'deltas', 
+            torch.zeros(batch_size * 1024, dtype=torch.float32),
+            persistent=False
+        )
+        self.register_buffer(
+            'ts', 
+            torch.zeros(batch_size * 1024, dtype=torch.float32),
+            persistent=False
+        )
 
         # self.register_buffer('dL_drays_o', torch.zeros(batch_size, dtype=torch.float32))
         # self.register_buffer('dL_drays_d', torch.zeros(batch_size, dtype=torch.float32))

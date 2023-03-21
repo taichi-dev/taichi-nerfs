@@ -189,11 +189,14 @@ class TriPlaneEncoder(torch.nn.Module):
             torch.zeros(
                 self.plane_res**2 * 3 * self.plane_feat, 
                 dtype=torch_type
-            )
+            ),
+            persistent=False,
         )
         self.register_buffer(
             'output_embedding',
-            torch.zeros(batch_size * 1024, 32, dtype=torch_type))
+            torch.zeros(batch_size * 1024, 32, dtype=torch_type),
+            persistent=False,
+        )
 
         class _module_function(torch.autograd.Function):
 
