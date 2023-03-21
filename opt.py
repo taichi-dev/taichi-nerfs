@@ -35,6 +35,12 @@ def get_opts():
                         action='store_true',
                         default=False,
                         help='whether to use half2 optimization')
+    
+    parser.add_argument('--encoder_type',
+                        type=str,
+                        default='hash',
+                        choices=['hash', 'triplane'],
+                        help='which encoder to use')
 
     # loss parameters
     parser.add_argument('--distortion_loss_w',
