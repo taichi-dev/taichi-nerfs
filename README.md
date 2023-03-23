@@ -1,6 +1,6 @@
 # Taichi NeRFs
 
-A PyTorch + Taichi implementation of [instant-ngp](https://nvlabs.github.io/instant-ngp/assets/mueller2022instant.pdf) NeRF training pipeline.
+A PyTorch + Taichi implementation of [instant-ngp](https://nvlabs.github.io/instant-ngp/assets/mueller2022instant.pdf) NeRF training pipeline. For more details about modeling, please checkout this [article on our blog site](https://docs.taichi-lang.org/blog/taichi-instant-ngp).
 
 <p align="center">
 <img src="assets/office.gif" width="200">
