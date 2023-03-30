@@ -1,7 +1,7 @@
 import argparse
 
 
-def get_opts():
+def get_opts(prefix_args=None):
     parser = argparse.ArgumentParser()
 
     # dataset parameters
@@ -108,4 +108,4 @@ def get_opts():
     # performance profile
     parser.add_argument('--perf', action='store_true', default=False)
 
-    return parser.parse_args()
+    return parser.parse_args(prefix_args)
