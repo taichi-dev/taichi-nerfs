@@ -33,7 +33,16 @@ class TruncExp(torch.autograd.Function):
 
 class TaichiNGP(nn.Module):
 
-    def __init__(self, args, scale, rgb_act='Sigmoid'):
+    def __init__(
+            self, 
+            args, 
+            scale, 
+            L=16, # number of levels in hash table
+            F=2, # number of features per level
+            log2_T=19, # maximum number of entries per level 2^19
+            N_min=16, # minimum resolution of  hash table
+            rgb_act='Sigmoid'
+        ):
         super().__init__()
         self.rgb_act = rgb_act
 
@@ -53,11 +62,8 @@ class TaichiNGP(nn.Module):
                         dtype=torch.uint8))
 
         # constants
-        L = 16
-        F = 2
-        log2_T = 19
-        N_min = 16
-        b = np.exp(np.log(2048 * scale / N_min) / (L - 1))
+        max_resolution = 2048 # maximum resolution of the hash table
+        b = np.exp(np.log(max_resolution * scale / N_min) / (L - 1)) 
         print(f'GridEncoding: Nmin={N_min} b={b:.5f} F={F} T=2^{log2_T} L={L}')
         self.b = b
         # self.b = self.hash_encoder.native_tcnn_module.hyperparams(
