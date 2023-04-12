@@ -52,13 +52,14 @@ class NGPDataset(BaseDataset):
         for frame in tqdm(frames):
             c2w = np.array(frame['transform_matrix'])[:3, :4]
 
-            self.poses += [c2w]
+            
 
             try:
                 img_path = os.path.join(self.root_dir,
                                         f"{frame['file_path']}")
                 img = read_image(img_path, self.img_wh)
                 self.rays += [img]
+                self.poses += [c2w]
             except:
                 print("can not read image")
 
