@@ -58,6 +58,8 @@ Place your video in `data` folder and pass the video path to the script. There a
 ./scripts/train_from_video.sh -v {your_video_name} -s {scale} -f {video_fps}
 ```
 
+Nerf use colmap to get the posture of the camera, so you need to download the colmap from [here](https://github.com/colmap/colmap/releases), and rename the directory to "colmap" and put it in the "external" directory.  
+
 ## [Preview] Mobile Deployment
 
 Using [Taichi AOT](https://docs.taichi-lang.org/docs/tutorial), you can easily deploy a NeRF rendering pipeline on any mobile devices!

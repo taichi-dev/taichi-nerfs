@@ -97,7 +97,7 @@ def run_colmap(args):
 
 	# On Windows, if FFmpeg isn't found, try automatically downloading it from the internet
 	if os.name == "nt" and os.system(f"where {colmap_binary} >nul 2>nul") != 0:
-		colmap_glob = os.path.join(ROOT_DIR, "external", "colmap", "*", "COLMAP.bat")
+		colmap_glob = os.path.join(ROOT_DIR, "external", "colmap", "COLMAP.bat")
 		candidates = glob(colmap_glob)
 		if not candidates:
 			print("COLMAP not found. Attempting to download COLMAP from the internet.")
