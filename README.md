@@ -42,6 +42,11 @@ To reach the best performance, here are the steps to follow:
 3. Uncomment `--half2_opt` to enable half2 optimization in the script, then `./scripts/train_nsvf_lego.sh`. For now, half2 optimization is only supported on Linux with Graphics Card Architecture >Pascal.
 
 
+**For Windows users**
+```
+./scripts/train_nsvf_lego.ps1
+```
+
 ### 360_v2 dataset
 
 Download [360 v2 dataset](http://storage.googleapis.com/gresearch/refraw360/360_v2.zip) and unzip it. Please keep the folder name unchanged. The default `batch_size=8192` takes up to 18GB RAM on a RTX3090. Please adjust `batch_size` according to your hardware spec. 
@@ -49,6 +54,12 @@ Download [360 v2 dataset](http://storage.googleapis.com/gresearch/refraw360/360_
 ```bash
 ./scripts/train_360_v2_garden.sh
 ```
+
+**For Windows users**
+```
+./scripts/train_360_v2_garden.ps1
+```
+
 
 ## Train with your own video
 
@@ -58,7 +69,12 @@ Place your video in `data` folder and pass the video path to the script. There a
 ./scripts/train_from_video.sh -v {your_video_name} -s {scale} -f {video_fps}
 ```
 
-Nerf use colmap to get the posture of the camera, so you need to download the colmap from [here](https://github.com/colmap/colmap/releases), and rename the directory to "colmap" and put it in the "external" directory.  
+**For Windows users**
+```
+./scripts/train_from_video.ps1
+```
+You need to download the colmap to extract the camera posture information. Download the colmap from [here](https://github.com/colmap/colmap/releases), and rename the directory to "colmap" and put it in the "external" directory under the project directory.  
+
 
 ## [Preview] Mobile Deployment
 
