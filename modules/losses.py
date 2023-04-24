@@ -11,7 +11,7 @@ class NeRFLoss(nn.Module):
         self.lambda_opacity = lambda_opacity
         self.lambda_distortion = lambda_distortion
 
-    def forward(self, results, target, **kwargs):
+    def forward(self, results, target):
         d = {}
         d['rgb'] = (results['rgb'] - target['rgb'])**2
 

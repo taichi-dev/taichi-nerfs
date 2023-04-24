@@ -12,12 +12,12 @@ from .ray_utils import get_ray_directions
 
 class NSVFDataset(BaseDataset):
 
-    def __init__(self, root_dir, split='train', downsample=1.0, **kwargs):
+    def __init__(self, root_dir, split='train', downsample=1.0, read_meta=True):
         super().__init__(root_dir, split, downsample)
 
         self.read_intrinsics()
 
-        if kwargs.get('read_meta', True):
+        if read_meta:
             xyz_min, xyz_max = \
                 np.loadtxt(os.path.join(root_dir, 'bbox.txt'))[:6].reshape(2, 3)
             self.shift = (xyz_max + xyz_min) / 2

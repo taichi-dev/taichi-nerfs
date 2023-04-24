@@ -1,22 +1,21 @@
 import time
 import warnings
 
-import numpy as np
 import torch
+import numpy as np
+import taichi as ti
+from einops import rearrange
+from scipy.spatial.transform import Rotation as R
+
+from opt import get_opts
 from datasets import dataset_dict
 from datasets.ray_utils import get_ray_directions, get_rays
-from einops import rearrange
+
 from modules.networks import TaichiNGP
 from modules.rendering import render
 from modules.utils import load_ckpt, depth2img
-from opt import get_opts
-from scipy.spatial.transform import Rotation as R
 
 warnings.filterwarnings("ignore")
-
-import taichi as ti
-
-
 
 @ti.kernel
 def write_buffer(W: ti.i32, H: ti.i32, x: ti.types.ndarray(),
@@ -79,6 +78,7 @@ class NGPGUI:
 
     def __init__(self, hparams, K, img_wh, poses, radius=2.5):
         self.hparams = hparams
+<<<<<<< HEAD:show_gui.py
         rgb_act = 'Sigmoid'
         self.model = TaichiNGP(
             hparams,
@@ -89,29 +89,46 @@ class NGPGUI:
         load_ckpt(self.model,
                   hparams.ckpt_path,
                   prefixes_to_ignore=['grid_coords', 'density_grid'])
+=======
+        self.model = TaichiNGP(
+            hparams, 
+            scale=hparams.scale,
+        ).cuda()
+
+        load_ckpt(
+            self.model,
+            hparams.ckpt_path,
+            prefixes_to_ignore=['density_grid', 'grid_coords']
+        )
+>>>>>>> 2cd6f66 (wip):gui.py
 
         self.poses = poses
 
         self.cam = OrbitCamera(K, img_wh, poses, r=radius)
         self.W, self.H = img_wh
-        self.render_buffer = ti.Vector.field(3,
-                                             dtype=float,
-                                             shape=(self.W, self.H))
+        self.render_buffer = ti.Vector.field(
+            n=3,
+            dtype=float,
+            shape=(self.W, self.H)
+        )
 
         # placeholders
         self.dt = 0
         self.mean_samples = 0
         self.img_mode = 0
-        self.exposure = 0.2
 
     def render_cam(self):
         t = time.time()
-        directions = get_ray_directions(self.cam.H,
-                                        self.cam.W,
-                                        self.cam.K,
-                                        device='cuda')
-        rays_o, rays_d = get_rays(directions,
-                                  torch.cuda.FloatTensor(self.cam.pose))
+        directions = get_ray_directions(
+            self.cam.H,
+            self.cam.W,
+            self.cam.K,
+            device='cuda'
+        )
+        rays_o, rays_d = get_rays(
+            directions,
+            torch.cuda.FloatTensor(self.cam.pose)
+        )
 
         # TODO: set these attributes by gui
         if self.hparams.dataset_name in ['colmap', 'nerfpp']:
@@ -120,15 +137,14 @@ class NGPGUI:
             exp_step_factor = 0
 
         results = render(
-            self.model, rays_o, rays_d, **{
-                'test_time': True,
-                'to_cpu': False,
-                'to_numpy': False,
-                'T_threshold': 1e-2,
-                'exposure': torch.cuda.FloatTensor([self.exposure]),
-                'max_samples': 100,
-                'exp_step_factor': exp_step_factor
-            })
+            self.model, 
+            rays_o, 
+            rays_d, 
+            test_time=True,
+            exp_step_factor=exp_step_factor,
+            max_samples=100,
+            T_threshold=1e-2,
+        )
 
         rgb = rearrange(results["rgb"], "(h w) c -> h w c", h=self.H)
         depth = rearrange(results["depth"], "(h w) -> h w", h=self.H)
@@ -197,8 +213,6 @@ class NGPGUI:
                 self.cam.rotate_speed = w.slider_float('rotate speed',
                                                        self.cam.rotate_speed,
                                                        0.1, 1.)
-                self.exposure = w.slider_float('exposure', self.exposure,
-                                               1 / 60, 32)
 
                 self.img_mode = w.checkbox("show depth", self.img_mode)
 
@@ -221,11 +235,10 @@ if __name__ == "__main__":
     ti.init(arch=ti.cuda, device_memory_GB=4)
 
     hparams = get_opts()
-    kwargs = {
-        'root_dir': hparams.root_dir,
-        'downsample': hparams.downsample,
-        'read_meta': True
-    }
-    dataset = dataset_dict[hparams.dataset_name](**kwargs)
+    dataset = dataset_dict[hparams.dataset_name](
+        root_dir=hparams.root_dir,
+        downsample=hparams.downsample,
+        read_meta=True,
+    )
 
     NGPGUI(hparams, dataset.K, dataset.img_wh, dataset.poses).render()

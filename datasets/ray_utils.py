@@ -47,8 +47,7 @@ def get_ray_directions(H,
         return directions, grid
     return directions
 
-
-@torch.cuda.amp.autocast(dtype=torch.float32)
+@torch.no_grad()
 def get_rays(directions, c2w):
     """
     Get ray origin and directions in world coordinate for all pixels in one image.
