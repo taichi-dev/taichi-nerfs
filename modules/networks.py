@@ -2,13 +2,18 @@ import math
 from typing import Callable, Optional
 
 # from .custom_functions import TruncExp
-import numpy as np
 import torch
-from einops import rearrange
+import numpy as np
 from torch import nn
+from einops import rearrange
+from kornia.utils.grid import create_meshgrid3d
 from torch.cuda.amp import custom_bwd, custom_fwd
 
+<<<<<<< HEAD
 from .hash_encoder_deploy import HashEncoder as HashEncoderDe
+=======
+
+>>>>>>> adf8d1c (revert modules)
 from .hash_encoder import HashEncoder
 from .triplane import TriPlaneEncoder
 from .ray_march import RayMarcher
@@ -47,6 +52,7 @@ class TaichiNGP(nn.Module):
             max_resolution=2048, # maximum resolution of the hash table
         ):
         super().__init__()
+        self.rgb_act = rgb_act
 
         # scene bounding box
         self.scale = scale
@@ -60,10 +66,22 @@ class TaichiNGP(nn.Module):
         self.grid_size = 128
         self.register_buffer(
             'density_bitfield',
-            torch.zeros(
-                self.cascades * self.grid_size**3 // 8,
-                dtype=torch.uint8
-            ),
+            torch.zeros(self.cascades * self.grid_size**3 // 8,
+                        dtype=torch.uint8))
+
+        self.register_buffer(
+            'density_grid',
+            torch.zeros(self.cascades, self.grid_size**3),
+        )
+        self.register_buffer(
+            'grid_coords',
+            create_meshgrid3d(
+                self.grid_size, 
+                self.grid_size, 
+                self.grid_size, 
+                False,
+                dtype=torch.int32
+            ).reshape(-1, 3)
         )
 
         self.ray_marching = RayMarcher(args.batch_size)
@@ -142,7 +160,6 @@ class TaichiNGP(nn.Module):
         Inputs:
             x: (N, 3) xyz in [-scale, scale]
             return_feat: whether to return intermediate feature
-
         Outputs:
             sigmas: (N)
         """
@@ -154,12 +171,32 @@ class TaichiNGP(nn.Module):
             return sigmas, h
         return sigmas
 
-    def forward(self, x, d):
+    def log_radiance_to_rgb(self, log_radiances, **kwargs):
+        """
+        Convert log-radiance to rgb as the setting in HDR-NeRF.
+        Called only when self.rgb_act == 'None' (with exposure)
+        Inputs:
+            log_radiances: (N, 3)
+        Outputs:
+            rgbs: (N, 3)
+        """
+        if 'exposure' in kwargs:
+            log_exposure = torch.log(kwargs['exposure'])
+        else:  # unit exposure by default
+            log_exposure = 0
+
+        out = []
+        for i in range(3):
+            inp = log_radiances[:, i:i + 1] + log_exposure
+            out += [getattr(self, f'tonemapper_net_{i}')(inp)]
+        rgbs = torch.cat(out, 1)
+        return rgbs
+
+    def forward(self, x, d, **kwargs):
         """
         Inputs:
             x: (N, 3) xyz in [-scale, scale]
             d: (N, 3) directions
-
         Outputs:
             sigmas: (N)
             rgbs: (N, 3)
@@ -169,13 +206,18 @@ class TaichiNGP(nn.Module):
         d = self.dir_encoder((d + 1) / 2)
         rgbs = self.rgb_net(torch.cat([d, h], 1))
 
-        return sigmas, TruncExp.apply(rgbs)
+        if self.rgb_act == 'None':  # rgbs is log-radiance
+            if kwargs.get('output_radiance', False):  # output HDR map
+                rgbs = TruncExp.apply(rgbs)
+            else:  # convert to LDR using tonemapper networks
+                rgbs = self.log_radiance_to_rgb(rgbs, **kwargs)
+
+        return sigmas, rgbs
 
     @torch.no_grad()
     def get_all_cells(self):
         """
         Get all cells from the density grid.
-
         Outputs:
             cells: list (of length self.cascades) of indices and coords
                    selected at each cascade
@@ -190,7 +232,6 @@ class TaichiNGP(nn.Module):
         """
         Sample both M uniform and occupied cells (per cascade)
         occupied cells are sample from cells with density > @density_threshold
-
         Outputs:
             cells: list (of length self.cascades) of indices and coords
                    selected at each cascade
@@ -221,7 +262,6 @@ class TaichiNGP(nn.Module):
         """
         mark the cells that aren't covered by the cameras with density -1
         only executed once before training starts
-
         Inputs:
             K: (3, 3) camera intrinsics
             poses: (N, 3, 4) camera to world poses
@@ -262,12 +302,11 @@ class TaichiNGP(nn.Module):
                     torch.where(valid_mask, 0., -1.)
 
     @torch.no_grad()
-    def update_density_grid(
-            self,
-            density_threshold,
-            warmup=False,
-            decay=0.95
-        ):
+    def update_density_grid(self,
+                            density_threshold,
+                            warmup=False,
+                            decay=0.95,
+                            erode=False):
         density_grid_tmp = torch.zeros_like(self.density_grid)
         if warmup:  # during the first steps
             cells = self.get_all_cells()
@@ -285,6 +324,9 @@ class TaichiNGP(nn.Module):
             xyzs_w += (torch.rand_like(xyzs_w) * 2 - 1) * half_grid_size
             density_grid_tmp[c, indices] = self.density(xyzs_w)
 
+        if erode:
+            # My own logic. decay more the cells that are visible to few cameras
+            decay = torch.clamp(decay**(1 / self.count_grid), 0.1, 0.95)
         self.density_grid = \
             torch.where(self.density_grid<0,
                         self.density_grid,

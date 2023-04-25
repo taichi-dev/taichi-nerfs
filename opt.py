@@ -64,6 +64,10 @@ def get_opts(prefix_args=None):
                         all_images: uniformly from all pixels of ALL images
                         same_image: uniformly from all pixels of a SAME image
                         ''')
+    parser.add_argument('--num_epochs',
+                        type=int,
+                        default=30,
+                        help='number of steps to train')
     parser.add_argument('--max_steps',
                         type=int,
                         default=20000,
