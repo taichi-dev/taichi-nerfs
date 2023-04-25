@@ -58,9 +58,6 @@ public:
   unsigned int kGridSize = 128;
   unsigned int kCascades = 1;
     
-  // If the resolution ever changed, regenerate AOT files with correspondant "--res_w=... --res_h=..."
-  // iPad M1 Pro Max: 683 x 512
-  // iPhone 14: 600 x 300
   unsigned int kWidth;
   unsigned int kHeight;
   unsigned int kNumRays;
@@ -77,9 +74,10 @@ public:
 
   double elapsed_time;
 
-  App_nerf_f32(TiArch arch, int img_width, int img_height);
+  App_nerf_f32(TiArch arch);
     
-  void initialize(const std::string& aot_file_path,
+  void initialize(int img_width, int img_height,
+                  const std::string& aot_file_path,
                   const std::string& hash_embedding_path,
                   const std::string& sigma_weights_path,
                   const std::string& rgb_weights_path,

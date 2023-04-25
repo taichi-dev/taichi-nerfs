@@ -34,23 +34,29 @@ void copy_from_vector(ti::Runtime& runtime_, const std::vector<T> &from, ti::NdA
     tmp.destroy();
 }
 
-App_nerf_f32::App_nerf_f32(TiArch arch, int img_width, int img_height) {
-    kWidth = img_width;
-    kHeight = img_height;
-    kNumRays = kWidth * kHeight;
-    kNumMaxSamples = kNumRays * kMaxSamplePerRay;
-
+App_nerf_f32::App_nerf_f32(TiArch arch) {
     runtime_ = ti::Runtime(arch);
 }
 
-void App_nerf_f32::initialize(const std::string& aot_file_path,
+void App_nerf_f32::initialize(int img_width, int img_height,
+                              const std::string& aot_file_path,
                               const std::string& hash_embedding_path,
                               const std::string& sigma_weights_path,
                               const std::string& rgb_weights_path,
                               const std::string& density_bitfield_path,
                               const std::string& pose_path,
                               const std::string& directions_path) {
+    // ----------------- //
+    // Initialize Params 
+    // ----------------- //
+    kWidth = img_width;
+    kHeight = img_height;
+    kNumRays = kWidth * kHeight;
+    kNumMaxSamples = kNumRays * kMaxSamplePerRay;
 
+    // ------------------------------ //
+    // Load AOT Module and AOT Kernels 
+    // ------------------------------ //
     module_ = runtime_.load_aot_module(aot_file_path);
     check_taichi_error("load_aot_module failed");
 
@@ -58,6 +64,9 @@ void App_nerf_f32::initialize(const std::string& aot_file_path,
     k_init_current_index_ = module_.get_kernel("init_current_index");
     k_rotate_scale_ = module_.get_kernel("rotate_scale");
 
+    // ---------------------------------- //
+    // Load Pre-trained Weights to Ndarray 
+    // ---------------------------------- //
     hash_embedding_ = runtime_.allocate_ndarray<float>(
         {11176096}, {}, /*host_accessible=*/false);
     std::vector<float> hash_embedding = read_float32_array(hash_embedding_path);
@@ -89,6 +98,9 @@ void App_nerf_f32::initialize(const std::string& aot_file_path,
     auto directions = read_float32_array(directions_path);
     copy_from_vector<float>(runtime_, directions, directions_);
 
+    // -------------------------------- //
+    // Allocate and Initialize Ndarrays
+    // -------------------------------- //
     run_model_ind_ = runtime_.allocate_ndarray<int>({kNumMaxSamples}, {},
                                                     /*host_accessible=*/false);
     N_eff_samples_ = runtime_.allocate_ndarray<int>({kNumRays}, {},
@@ -110,8 +122,10 @@ void App_nerf_f32::initialize(const std::string& aot_file_path,
 
     current_index_ =
         runtime_.allocate_ndarray<int>({1}, {}, /*host_accessible=*/false);
+    
     k_init_current_index_[0] = current_index_;
     k_init_current_index_.launch();
+    
     model_launch_ =
         runtime_.allocate_ndarray<int>({1}, {}, /*host_accessible=*/false);
     pad_block_network_ =
@@ -151,7 +165,9 @@ void App_nerf_f32::initialize(const std::string& aot_file_path,
     runtime_.wait();
     check_taichi_error("Memory allocation failed");
 
-    // Most kernel arguments don't change so let's initialize them here.
+    // -------------------- //
+    // Prepare AOT Kernels
+    // -------------------- //
     k_reset_ = module_.get_kernel("reset");
     k_reset_[0] = counter_;
     k_reset_[1] = alive_indices_;
@@ -228,6 +244,7 @@ void App_nerf_f32::initialize(const std::string& aot_file_path,
     check_taichi_error("get_kernel failed");
 }
 
+// This function rotates the camera
 void App_nerf_f32::pose_rotate_scale(float angle_x, float angle_y, float angle_z, float radius) {
     k_rotate_scale_[0] = pose_;
     k_rotate_scale_[1] = angle_x;

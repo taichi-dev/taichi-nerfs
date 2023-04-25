@@ -18,15 +18,16 @@ int main(int argc, const char **argv) {
   // --------------- //
   // Initialization  //
   // --------------- //
+  TiArch arch = TI_ARCH_VULKAN;
+  App_nerf_f32 app = App_nerf_f32(arch);
   
   // Modify Width & Height to stay consistent with what used in the taichi code
-  // In this demo, we used 200 x 200 since it's generated from:
-  //      python3 taichi_ngp.py --scene smh_lego --aot --res_w=200 --res_h=200
-  int img_width  = 200;
-  int img_height = 200;
-  TiArch arch = TI_ARCH_VULKAN;
-  App_nerf_f32 app = App_nerf_f32(arch, img_width, img_height);
-  app.initialize(aot_file_root,
+  // In this demo, we used 300 x 600 since it's generated from:
+  //      python3 taichi_ngp.py --scene smh_lego --aot --res_w=300 --res_h=600
+  int img_width  = 300;
+  int img_height = 600;
+  app.initialize(img_width, img_height,
+                 aot_file_root,
                  hash_embedding_path,
                  sigma_weights_path,
                  rgb_weights_path,

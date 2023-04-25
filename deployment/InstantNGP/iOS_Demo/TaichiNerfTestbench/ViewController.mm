@@ -7,6 +7,7 @@
 
 #import "ViewController.h"
 #include "app_fp32.hpp"
+#include "unistd.h"
 
 std::vector<unsigned char> imagePostProcessing(const std::vector<float>& img,
                                                int width,
@@ -49,7 +50,7 @@ UIImage* imageShow(unsigned char *rgba,
     return image;
 }
 
-static App_nerf_f32 app_f32 = App_nerf_f32();
+static App_nerf_f32 app_f32 = App_nerf_f32(TI_ARCH_METAL);
 
 static double touchBeginLocationX = 0.0;
 static double touchBeginLocationY = 0.0;
@@ -65,27 +66,38 @@ static double touchBeginLocationY = 0.0;
     
     // Initialize AOT Module
     NSString *bundleRoot =[[NSBundle mainBundle] resourcePath];
-    NSString *aotFilePath = [bundleRoot stringByAppendingPathComponent:@"instant_ngp/assets/compiled"];
-    NSString *hashEmbeddingFilePath = [bundleRoot stringByAppendingPathComponent:@"instant_ngp/assets/compiled/hash_embedding.bin"];
-    NSString *sigmaWeightsFilePath = [bundleRoot stringByAppendingPathComponent:@"instant_ngp/assets/compiled/sigma_weights.bin"];
-    NSString *rgbWeightsFilePath = [bundleRoot stringByAppendingPathComponent:@"instant_ngp/assets/compiled/rgb_weights.bin"];
-    NSString *densityBitfieldFilePath = [bundleRoot stringByAppendingPathComponent:@"instant_ngp/assets/compiled/density_bitfield.bin"];
-    NSString *poseFilePath = [bundleRoot stringByAppendingPathComponent:@"instant_ngp/assets/compiled/pose.bin"];
-    NSString *directionsFilePath = [bundleRoot stringByAppendingPathComponent:@"instant_ngp/assets/compiled/directions.bin"];
+    NSString *aotFilePath = [bundleRoot stringByAppendingPathComponent:@"taichi_ngp/compiled"];
+    NSString *hashEmbeddingFilePath = [aotFilePath stringByAppendingPathComponent:@"hash_embedding.bin"];
+    NSString *sigmaWeightsFilePath = [aotFilePath stringByAppendingPathComponent:@"sigma_weights.bin"];
+    NSString *rgbWeightsFilePath = [aotFilePath stringByAppendingPathComponent:@"rgb_weights.bin"];
+    NSString *densityBitfieldFilePath = [aotFilePath stringByAppendingPathComponent:@"density_bitfield.bin"];
+    NSString *poseFilePath = [aotFilePath stringByAppendingPathComponent:@"pose.bin"];
+    NSString *directionsFilePath = [aotFilePath stringByAppendingPathComponent:@"directions.bin"];
     
-    app_f32.initialize(std::string([aotFilePath UTF8String]),
+    // Modify Width & Height to stay consistent with what used in the taichi code
+    // In this demo, we used 300 x 600 since it's generated from:
+    //      python3 taichi_ngp.py --scene smh_lego --aot --res_w=300 --res_h=600
+    //
+    // If you would like to use an alternative resolution,
+    // regenerate AOT files with correspondant "--res_w=... --res_h=..."
+    //
+    // iPad M1 Pro Max: 683 x 512
+    // iPhone 14: 600 x 300
+    int img_width = 300;
+    int img_height = 600;
+    app_f32.initialize(img_width, img_height,
+                       std::string([aotFilePath UTF8String]),
                        std::string([hashEmbeddingFilePath UTF8String]),
                        std::string([sigmaWeightsFilePath UTF8String]),
                        std::string([rgbWeightsFilePath UTF8String]),
                        std::string([densityBitfieldFilePath UTF8String]),
                        std::string([poseFilePath UTF8String]),
                        std::string([directionsFilePath UTF8String]));
-    
+
+    app_f32.pose_rotate_scale(0.0, 0.0, 0.0, 2.5);
     std::vector<float> img = app_f32.run();
     auto img_data = imagePostProcessing(img, app_f32.kWidth, app_f32.kHeight);
-    
     UIImage* image = imageShow(img_data.data(), app_f32.kWidth, app_f32.kHeight);
-    
     UIImageView* imageView = [[UIImageView alloc] initWithImage:image];
     
     [imageView setFrame:CGRectMake(0, 0, image.size.width, image.size.height)];
@@ -120,8 +132,8 @@ static double touchBeginLocationY = 0.0;
     float angle_y = 0.0;
     float angle_z = 0.0;
     const float base_angle = 0.1;
-    const float base_scale = 0.01;
     
+    // Setup "angle" and "radius" based on Touch Event
     if(num_touches == 1) {
         UITouch *touch = [[event allTouches] anyObject];
         CGPoint touchLocation = [touch locationInView:touch.view];
@@ -146,13 +158,15 @@ static double touchBeginLocationY = 0.0;
         angle_z = base_angle * move_x * 0.01;
     }
     
+    // Rotate camera based on "angle" & "radius" collected from Touch Event
     app_f32.pose_rotate_scale(angle_x, angle_y, angle_z, radius);
-        
+    
+    // Run Nerf Inference
     std::vector<float> img = app_f32.run();
+    
+    // Display output image
     auto img_data = imagePostProcessing(img, app_f32.kWidth, app_f32.kHeight);
-    
     UIImage* image = imageShow(img_data.data(), app_f32.kWidth, app_f32.kHeight);
-    
     UIImageView* imageView = [[UIImageView alloc] initWithImage:image];
     
     [imageView setFrame:CGRectMake(0, 0, image.size.width, image.size.height)];
