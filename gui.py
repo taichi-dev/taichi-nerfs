@@ -13,7 +13,7 @@ from datasets.ray_utils import get_ray_directions, get_rays
 
 from modules.networks import TaichiNGP
 from modules.rendering import render
-from modules.utils import load_ckpt, depth2img
+from modules.utils import depth2img
 
 warnings.filterwarnings("ignore")
 
@@ -85,9 +85,10 @@ class NGPGUI:
             rgb_act=rgb_act,
             deployment=hparams.deployment,
         ).cuda()
-        load_ckpt(self.model,
-                  hparams.ckpt_path,
-                  prefixes_to_ignore=['grid_coords', 'density_grid'])
+
+        print(f"loading ckpt from: {hparams.ckpt_path}")
+        state_dict = torch.load(hparams.ckpt_path)
+        self.model.load_state_dict(state_dict)
 
         self.poses = poses
 
@@ -99,6 +100,11 @@ class NGPGUI:
             shape=(self.W, self.H)
         )
 
+        if self.hparams.dataset_name in ['colmap', 'nerfpp']:
+            self.exp_step_factor = 1 / 256
+        else:
+            self.exp_step_factor = 0
+
         # placeholders
         self.dt = 0
         self.mean_samples = 0
@@ -106,6 +112,7 @@ class NGPGUI:
 
     def render_cam(self):
         t = time.time()
+        # with torch.autocast(device_type='cuda', dtype=torch.float16):
         directions = get_ray_directions(
             self.cam.H,
             self.cam.W,
@@ -117,20 +124,17 @@ class NGPGUI:
             torch.cuda.FloatTensor(self.cam.pose)
         )
 
-        # TODO: set these attributes by gui
-        if self.hparams.dataset_name in ['colmap', 'nerfpp']:
-            exp_step_factor = 1 / 256
-        else:
-            exp_step_factor = 0
+        kwargs = {
+            'test_time': True,
+            'random_bg': self.hparams.random_bg,
+            'exp_step_factor': self.exp_step_factor,
+        }
 
         results = render(
             self.model, 
             rays_o, 
             rays_d, 
-            test_time=True,
-            exp_step_factor=exp_step_factor,
-            max_samples=100,
-            T_threshold=1e-2,
+            **kwargs,
         )
 
         rgb = rearrange(results["rgb"], "(h w) c -> h w c", h=self.H)

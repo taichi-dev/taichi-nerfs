@@ -11,17 +11,15 @@ import numpy as np
 import taichi as ti
 from einops import rearrange
 import torch.nn.functional as F
-from kornia.utils.grid import create_meshgrid3d
 
 from gui import NGPGUI
 from opt import get_opts
 from datasets import dataset_dict
 from datasets.ray_utils import get_rays
 
-from modules.losses import NeRFLoss
 from modules.networks import TaichiNGP
 from modules.rendering import MAX_SAMPLES, render
-from modules.utils import load_ckpt, depth2img
+from modules.utils import depth2img
 
 from torchmetrics import (
     PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
@@ -208,7 +206,7 @@ def main():
         test_psnrs = []
         test_ssims = []
         kwargs = {
-            'test_time': False,
+            'test_time': True,
             'random_bg': hparams.random_bg,
             'exp_step_factor': exp_step_factor,
         }
@@ -226,9 +224,7 @@ def main():
                 model, 
                 rays_o, 
                 rays_d,
-                test_time=True,
-                exp_step_factor=exp_step_factor,
-                random_bg=random_background,
+                **kwargs,
             )
             # TODO: get rid of this
             rgb_pred = rearrange(results['rgb'], '(h w) c -> 1 c h w', h=h)

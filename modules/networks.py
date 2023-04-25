@@ -9,11 +9,7 @@ from einops import rearrange
 from kornia.utils.grid import create_meshgrid3d
 from torch.cuda.amp import custom_bwd, custom_fwd
 
-<<<<<<< HEAD
 from .hash_encoder_deploy import HashEncoder as HashEncoderDe
-=======
-
->>>>>>> adf8d1c (revert modules)
 from .hash_encoder import HashEncoder
 from .triplane import TriPlaneEncoder
 from .ray_march import RayMarcher
@@ -52,7 +48,6 @@ class TaichiNGP(nn.Module):
             max_resolution=2048, # maximum resolution of the hash table
         ):
         super().__init__()
-        self.rgb_act = rgb_act
 
         # scene bounding box
         self.scale = scale
@@ -171,27 +166,6 @@ class TaichiNGP(nn.Module):
             return sigmas, h
         return sigmas
 
-    def log_radiance_to_rgb(self, log_radiances, **kwargs):
-        """
-        Convert log-radiance to rgb as the setting in HDR-NeRF.
-        Called only when self.rgb_act == 'None' (with exposure)
-        Inputs:
-            log_radiances: (N, 3)
-        Outputs:
-            rgbs: (N, 3)
-        """
-        if 'exposure' in kwargs:
-            log_exposure = torch.log(kwargs['exposure'])
-        else:  # unit exposure by default
-            log_exposure = 0
-
-        out = []
-        for i in range(3):
-            inp = log_radiances[:, i:i + 1] + log_exposure
-            out += [getattr(self, f'tonemapper_net_{i}')(inp)]
-        rgbs = torch.cat(out, 1)
-        return rgbs
-
     def forward(self, x, d, **kwargs):
         """
         Inputs:
@@ -205,12 +179,6 @@ class TaichiNGP(nn.Module):
         d = d / torch.norm(d, dim=1, keepdim=True)
         d = self.dir_encoder((d + 1) / 2)
         rgbs = self.rgb_net(torch.cat([d, h], 1))
-
-        if self.rgb_act == 'None':  # rgbs is log-radiance
-            if kwargs.get('output_radiance', False):  # output HDR map
-                rgbs = TruncExp.apply(rgbs)
-            else:  # convert to LDR using tonemapper networks
-                rgbs = self.log_radiance_to_rgb(rgbs, **kwargs)
 
         return sigmas, rgbs
 
