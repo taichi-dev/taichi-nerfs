@@ -61,12 +61,12 @@ public:
   // If the resolution ever changed, regenerate AOT files with correspondant "--res_w=... --res_h=..."
   // iPad M1 Pro Max: 683 x 512
   // iPhone 14: 600 x 300
-  unsigned int kWidth = 300;
-  unsigned int kHeight = 600;
-  unsigned int kNumRays = kWidth * kHeight;
+  unsigned int kWidth;
+  unsigned int kHeight;
+  unsigned int kNumRays;
+  unsigned int kNumMaxSamples;
   unsigned int kNumLevel = 16;
   unsigned int kMaxSamplePerRay = 1;
-  unsigned int kNumMaxSamples = kNumRays * kMaxSamplePerRay;
   int kMaxSamples = 100;
   float kThreshold = 1e-2;
   int kRepeat = 1;
@@ -77,7 +77,7 @@ public:
 
   double elapsed_time;
 
-  App_nerf_f32();
+  App_nerf_f32(TiArch arch, int img_width, int img_height);
     
   void initialize(const std::string& aot_file_path,
                   const std::string& hash_embedding_path,

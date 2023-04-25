@@ -17,9 +17,10 @@
 
 namespace {
 void check_taichi_error(const std::string &msg) {
-  TiError error = ti_get_last_error(0, nullptr);
-  if (error < TI_ERROR_SUCCESS) {
-    throw std::runtime_error(msg);
+  ti::Error error = ti::get_last_error();
+  if (error.error < TI_ERROR_SUCCESS) {
+    std::string error_msg = msg + "\n" + error.message;
+    throw std::runtime_error(error_msg);
   }
 }
 }  // namespace
@@ -33,8 +34,13 @@ void copy_from_vector(ti::Runtime& runtime_, const std::vector<T> &from, ti::NdA
     tmp.destroy();
 }
 
-App_nerf_f32::App_nerf_f32() {
-    runtime_ = ti::Runtime(TI_ARCH_METAL);
+App_nerf_f32::App_nerf_f32(TiArch arch, int img_width, int img_height) {
+    kWidth = img_width;
+    kHeight = img_height;
+    kNumRays = kWidth * kHeight;
+    kNumMaxSamples = kNumRays * kMaxSamplePerRay;
+
+    runtime_ = ti::Runtime(arch);
 }
 
 void App_nerf_f32::initialize(const std::string& aot_file_path,
@@ -220,7 +226,6 @@ void App_nerf_f32::initialize(const std::string& aot_file_path,
     k_re_order_[2] = current_index_;
 
     check_taichi_error("get_kernel failed");
-    std::cout << "Initialized!" << std::endl;
 }
 
 void App_nerf_f32::pose_rotate_scale(float angle_x, float angle_y, float angle_z, float radius) {
