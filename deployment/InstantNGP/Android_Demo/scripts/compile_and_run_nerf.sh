@@ -1,7 +1,8 @@
-# recompile Taichi C-API & Nerf project
-export TAICHI_REPO_DIR=/home/taichigraphics/workspace/TaichiRepos/taichi_android
+# recompile Taichi C-API
+#export TAICHI_REPO_DIR=/home/taichigraphics/workspace/TaichiRepos/taichi_android
+#./scripts/build-taichi-android.sh
 
-./scripts/build-taichi-android.sh
+# compile Nerf project
 ./scripts/build-android.sh
 
 # Run Demo on Android

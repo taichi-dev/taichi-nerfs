@@ -15,10 +15,10 @@
 		0CDD7813299DF70500E02190 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0CDD7812299DF70500E02190 /* main.mm */; };
 		0CDD781C299DFA7C00E02190 /* libtaichi_c_api.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0CDD781B299DFA7C00E02190 /* libtaichi_c_api.a */; };
 		0CDD781E299DFBC600E02190 /* libc++.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 0CDD781D299DFBC600E02190 /* libc++.tbd */; };
-		9F9565FC29F68BC100126372 /* c_api in Resources */ = {isa = PBXBuildFile; fileRef = 9F9565FB29F68BC100126372 /* c_api */; };
 		9F95660329F68CDB00126372 /* utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9F9565FF29F68CDB00126372 /* utils.cpp */; };
 		9F95660429F68CDB00126372 /* app_fp32.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9F95660029F68CDB00126372 /* app_fp32.cpp */; };
 		9FCC345D29F7AD1400B42409 /* taichi_ngp in Resources */ = {isa = PBXBuildFile; fileRef = 9FCC345C29F7AD1400B42409 /* taichi_ngp */; };
+		9FCC345F29F7C6A300B42409 /* c_api in Resources */ = {isa = PBXBuildFile; fileRef = 9FCC345E29F7C6A300B42409 /* c_api */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,13 +35,13 @@
 		0CDD7812299DF70500E02190 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		0CDD781B299DFA7C00E02190 /* libtaichi_c_api.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; name = libtaichi_c_api.a; path = TaichiNerfTestbench/c_api/lib/libtaichi_c_api.a; sourceTree = "<group>"; };
 		0CDD781D299DFBC600E02190 /* libc++.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = "libc++.tbd"; path = "usr/lib/libc++.tbd"; sourceTree = SDKROOT; };
-		9F9565FB29F68BC100126372 /* c_api */ = {isa = PBXFileReference; lastKnownFileType = folder; path = c_api; sourceTree = "<group>"; };
 		9F9565FE29F68CDB00126372 /* stb_image_writer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stb_image_writer.h; sourceTree = "<group>"; };
 		9F9565FF29F68CDB00126372 /* utils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = utils.cpp; sourceTree = "<group>"; };
 		9F95660029F68CDB00126372 /* app_fp32.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = app_fp32.cpp; sourceTree = "<group>"; };
 		9F95660129F68CDB00126372 /* utils.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = utils.hpp; sourceTree = "<group>"; };
 		9F95660229F68CDB00126372 /* app_fp32.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = app_fp32.hpp; sourceTree = "<group>"; };
 		9FCC345C29F7AD1400B42409 /* taichi_ngp */ = {isa = PBXFileReference; lastKnownFileType = folder; name = taichi_ngp; path = ../../taichi_ngp; sourceTree = "<group>"; };
+		9FCC345E29F7C6A300B42409 /* c_api */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = c_api; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -77,9 +77,9 @@
 		0CDD77FF299DF70500E02190 /* TaichiNerfTestbench */ = {
 			isa = PBXGroup;
 			children = (
+				9FCC345E29F7C6A300B42409 /* c_api */,
 				9FCC345C29F7AD1400B42409 /* taichi_ngp */,
 				9F9565FD29F68CDB00126372 /* utils */,
-				9F9565FB29F68BC100126372 /* c_api */,
 				0CDD7800299DF70500E02190 /* AppDelegate.h */,
 				0CDD7801299DF70500E02190 /* AppDelegate.m */,
 				0CDD7803299DF70500E02190 /* SceneDelegate.h */,
@@ -123,7 +123,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0CDD7816299DF70500E02190 /* Build configuration list for PBXNativeTarget "TaichiNerfTestbench" */;
 			buildPhases = (
-				9FF5AD81299E29140019CCC1 /* Generate AOT Files */,
+				9FF5AD81299E29140019CCC1 /* Check for C-API & Generate AOT Files */,
 				0CDD77F9299DF70500E02190 /* Sources */,
 				0CDD77FA299DF70500E02190 /* Frameworks */,
 				0CDD77FB299DF70500E02190 /* Resources */,
@@ -175,8 +175,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				9FCC345D29F7AD1400B42409 /* taichi_ngp in Resources */,
+				9FCC345F29F7C6A300B42409 /* c_api in Resources */,
 				0CDD7810299DF70500E02190 /* LaunchScreen.storyboard in Resources */,
-				9F9565FC29F68BC100126372 /* c_api in Resources */,
 				0CDD780B299DF70500E02190 /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -184,7 +184,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		9FF5AD81299E29140019CCC1 /* Generate AOT Files */ = {
+		9FF5AD81299E29140019CCC1 /* Check for C-API & Generate AOT Files */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -193,14 +193,14 @@
 			);
 			inputPaths = (
 			);
-			name = "Generate AOT Files";
+			name = "Check for C-API & Generate AOT Files";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "#rm -rf ${PROJECT_DIR}/../instant_ngp/assets/compiled\n#rm -rf ${PROJECT_DIR}/../instant_ngp_fp16/assets/compiled\n\n#python3 ${PROJECT_DIR}/../instant_ngp/assets/taichi_ngp.py --scene smh_lego --aot\n#python3 ${PROJECT_DIR}/../instant_ngp/assets/taichi_ngp.py --scene smh_lego --aot --fp16 --output ${PROJECT_DIR}/../instant_ngp_fp16/assets/compiled\n";
+			shellScript = "C_API_LIBRARY=${PROJECT_DIR}/c_api/lib/libtaichi_c_api.a\n\nif [ -e \"$C_API_LIBRARY\" ]; then\n    echo \"Found file $C_API_LIBRARY\"\nelse\n    C_API_LIBRARY_ZIP=${PROJECT_DIR}/taichi_c_api_ios_1_5_0.zip\n    unzip $C_API_LIBRARY_ZIP -d ${PROJECT_DIR}\nfi\n\n#python3 ${PROJECT_DIR}/../instant_ngp/assets/taichi_ngp.py --scene smh_lego --aot\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -371,7 +371,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"${PROJECT_DIR}/../utils/**",
-					"${PROJECT_DIR}/TaichiNerfTestbench/c_api/include",
+					"${PROJECT_DIR}/c_api/include",
 					"${PROJECT_DIR}/instant_ngp",
 					"${PROJECT_DIR}",
 				);
@@ -388,7 +388,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/TaichiNerfTestbench/c_api/lib",
+					"$(PROJECT_DIR)/c_api/lib",
 				);
 				MARKETING_VERSION = 1.0;
 				PRELINK_LIBS = "";
@@ -419,7 +419,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"${PROJECT_DIR}/../utils/**",
-					"${PROJECT_DIR}/TaichiNerfTestbench/c_api/include",
+					"${PROJECT_DIR}/c_api/include",
 					"${PROJECT_DIR}/instant_ngp",
 					"${PROJECT_DIR}",
 				);
@@ -436,7 +436,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/TaichiNerfTestbench/c_api/lib",
+					"$(PROJECT_DIR)/c_api/lib",
 				);
 				MARKETING_VERSION = 1.0;
 				PRELINK_LIBS = "";

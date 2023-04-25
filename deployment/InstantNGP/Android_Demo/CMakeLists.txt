@@ -29,7 +29,7 @@ list(APPEND TAICHI_TUTORIAL_DEMO_SRC
   ${PROJECT_ROOT_DIR}/utils/app_fp32.cpp
 )
 
-#execute_process(COMMAND python3 "${PROJECT_ROOT_DIR}/taichi_ngp/taichi_ngp.py" --scene smh_lego --aot --res_w=200 --res_h=200)
+#execute_process(COMMAND python3 "${PROJECT_ROOT_DIR}/taichi_ngp/taichi_ngp.py" --scene smh_lego --aot --res_w=300 --res_h=600)
 
 add_executable(${TAICHI_NERF_DEMO_NAME} ${TAICHI_TUTORIAL_DEMO_SRC})
 target_include_directories(${TAICHI_NERF_DEMO_NAME} PUBLIC
