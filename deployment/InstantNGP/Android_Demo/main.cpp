@@ -43,7 +43,7 @@ int main(int argc, const char **argv) {
   float radius = 2.5;
   // Camera rotation: connect "angles" & "radius" with Android Touch Event to make it a real Demo
   
-  //app.pose_rotate_scale(angle_x, angle_y, angle_z, radius);
+  app.pose_rotate_scale(angle_x, angle_y, angle_z, radius);
   
   std::vector<float> img = app.run();
   std::cout << "Inference Finished" << std::endl;
