@@ -17,14 +17,14 @@ from opt import get_opts
 from datasets import dataset_dict
 from datasets.ray_utils import get_rays
 
-from modules.networks import TaichiNGP
-from modules.rendering import MAX_SAMPLES, render
 from modules.utils import depth2img
+from modules.networks import TaichiNGP
+from modules.distortion import distortion_loss
+from modules.rendering import MAX_SAMPLES, render
 
 from torchmetrics import (
     PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 )
-from torch.optim.lr_scheduler import CosineAnnealingLR
 
 warnings.filterwarnings("ignore")
 
@@ -51,7 +51,6 @@ def main():
     val_dir = 'results/'
 
     # rendering configuration
-    random_background = hparams.random_bg
     exp_step_factor = 1 / 256 if hparams.scale > 0.5 else 0.
 
     # occupancy grid update configuration
@@ -89,7 +88,8 @@ def main():
 
     # load checkpoint if ckpt path is provided
     if hparams.ckpt_path:
-        load_ckpt(model, hparams.ckpt_path)
+        state_dict = torch.load(hparams.ckpt_path)
+        model.load_state_dict(state_dict)
         print("Load checkpoint from %s" % hparams.ckpt_path)
 
     model.mark_invisible_cells(
@@ -152,24 +152,20 @@ def main():
                 )
             # get rays
             rays_o, rays_d = get_rays(direction, pose)
-            kwargs = {
-                'test_time': False,
-                'random_bg': hparams.random_bg,
-                'exp_step_factor': exp_step_factor,
-            }
             # render image
             results = render(
                 model, 
                 rays_o, 
                 rays_d,
-                **kwargs
+                exp_step_factor=exp_step_factor,
             )
             loss = F.mse_loss(results['rgb'], data['rgb'])
+            if hparams.distortion_loss_w > 0:
+                loss += hparams.distortion_loss_w * distortion_loss(results)
 
         optimizer.zero_grad()
         grad_scaler.scale(loss).backward()
         grad_scaler.step(optimizer)
-        # scale = grad_scaler.get_scale()
         grad_scaler.update()
         scheduler.step()
 
@@ -205,11 +201,6 @@ def main():
         directions = test_dataset.directions
         test_psnrs = []
         test_ssims = []
-        kwargs = {
-            'test_time': True,
-            'random_bg': hparams.random_bg,
-            'exp_step_factor': exp_step_factor,
-        }
         for test_step in range(len(test_dataset)):
             progress_bar.update()
             test_data = test_dataset[test_step]
@@ -224,7 +215,8 @@ def main():
                 model, 
                 rays_o, 
                 rays_d,
-                **kwargs,
+                test_time=True,
+                exp_step_factor=exp_step_factor,
             )
             # TODO: get rid of this
             rgb_pred = rearrange(results['rgb'], '(h w) c -> 1 c h w', h=h)
@@ -239,7 +231,7 @@ def main():
             val_ssim.reset()
 
             # save test image to disk
-            if not hparams.no_save_test and test_step == 0:
+            if test_step == 0:
                 test_idx = test_data['img_idxs']
                 # TODO: get rid of this
                 rgb_pred = rearrange(

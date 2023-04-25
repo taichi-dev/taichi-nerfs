@@ -250,13 +250,12 @@ def raymarching_test_kernel(
         grid_size: int,
         scale: float,
         exp_step_factor: float,
-        N_samples: int,
         max_samples: int,
-        xyzs: ti.types.ndarray(ndim=2),
-        dirs: ti.types.ndarray(ndim=2),
+        ray_indices: ti.types.ndarray(ndim=1),
+        valid_mask: ti.types.ndarray(ndim=1),
         deltas: ti.types.ndarray(ndim=1),
         ts: ti.types.ndarray(ndim=1),
-        N_eff_samples: ti.types.ndarray(ndim=1),
+        samples_counter: ti.types.ndarray(ndim=1),
 ):
 
     for n in alive_indices:
@@ -272,8 +271,8 @@ def raymarching_test_kernel(
         t2 = hits_t[r, 1]
 
         s = 0
-
-        while (0 <= t) & (t < t2) & (s < N_samples):
+        start_based = n * max_samples
+        while (0 < t) & (t < t2) & (s < max_samples):
             xyz = ray_o + t * ray_d
             dt = calc_dt(t, exp_step_factor, grid_size, scale)
             mip = ti.max(mip_from_pos(xyz, cascades),
@@ -291,18 +290,14 @@ def raymarching_test_kernel(
             occ = density_bitfield[ti.u32(idx // 8)] & (1 << ti.u32(idx % 8))
 
             if occ:
-                xyzs[n, s, 0] = xyz[0]
-                xyzs[n, s, 1] = xyz[1]
-                xyzs[n, s, 2] = xyz[2]
-                dirs[n, s, 0] = ray_d[0]
-                dirs[n, s, 1] = ray_d[1]
-                dirs[n, s, 2] = ray_d[2]
-                ts[n, s] = t
-                deltas[n, s] = dt
+                idx = start_based + s
+                ray_indices[idx] = r
+                valid_mask[idx] = 1
+                ts[idx] = t
+                deltas[idx] = dt
                 t += dt
                 hits_t[r, 0] = t
                 s += 1
-
             else:
                 txyz = (((nxyz + 0.5 + 0.5 * ti.math.sign(ray_d)) *
                          grid_size_inv * 2 - 1) * mip_bound - xyz) * d_inv
@@ -312,41 +307,70 @@ def raymarching_test_kernel(
                 while t < t_target:
                     t += calc_dt(t, exp_step_factor, grid_size, scale)
 
-        N_eff_samples[n] = s
+        samples_counter[n] = s
 
-
-def raymarching_test(rays_o, rays_d, hits_t, alive_indices, density_bitfield,
-                     cascades, scale, exp_step_factor, grid_size, max_samples,
-                     N_samples):
+def raymarching_test(
+    rays_o, 
+    rays_d, 
+    hits_t,
+    alive_indices,
+    density_bitfield,
+    cascades,
+    scale,
+    exp_step_factor,
+    grid_size,
+    max_samples,
+):
 
     N_rays = alive_indices.size(0)
-    xyzs = torch.zeros(N_rays,
-                       N_samples,
-                       3,
-                       device=rays_o.device,
-                       dtype=rays_o.dtype)
-    dirs = torch.zeros(N_rays,
-                       N_samples,
-                       3,
-                       device=rays_o.device,
-                       dtype=rays_o.dtype)
-    deltas = torch.zeros(N_rays,
-                         N_samples,
-                         device=rays_o.device,
-                         dtype=rays_o.dtype)
-    ts = torch.zeros(N_rays,
-                     N_samples,
-                     device=rays_o.device,
-                     dtype=rays_o.dtype)
-    N_eff_samples = torch.zeros(N_rays,
-                                device=rays_o.device,
-                                dtype=torch.int32)
+    ray_indices = torch.zeros(
+        N_rays*max_samples,
+        device=rays_o.device,
+        dtype=torch.long,
+    )
+    valid_mask = torch.zeros(
+        N_rays*max_samples,
+        device=rays_o.device,
+        dtype=torch.int32,
+    )
+    deltas = torch.zeros(
+        N_rays*max_samples,
+        device=rays_o.device,
+        dtype=rays_o.dtype
+    )
+    ts = torch.zeros(
+        N_rays*max_samples,
+        device=rays_o.device,
+        dtype=rays_o.dtype
+    )
+    samples_counter = torch.zeros(
+        N_rays,
+        device=rays_o.device,
+        dtype=torch.int32
+    )
 
-    raymarching_test_kernel(rays_o, rays_d, hits_t, alive_indices,
-                            density_bitfield, cascades, grid_size, scale,
-                            exp_step_factor, N_samples, max_samples, xyzs,
-                            dirs, deltas, ts, N_eff_samples)
-
-    # ti.sync()
-
-    return xyzs, dirs, deltas, ts, N_eff_samples
+    raymarching_test_kernel(
+        rays_o, 
+        rays_d, 
+        hits_t, 
+        alive_indices,
+        density_bitfield, 
+        cascades, 
+        grid_size, 
+        scale,
+        exp_step_factor, 
+        max_samples, 
+        ray_indices,
+        valid_mask, 
+        deltas, 
+        ts, 
+        samples_counter
+    )
+    valid_mask = valid_mask.bool()
+    cumsum = torch.cumsum(samples_counter, 0)
+    packed_info = torch.stack([
+        cumsum - samples_counter, 
+        samples_counter], 
+        dim=-1,
+    )
+    return packed_info, ray_indices[valid_mask], deltas[valid_mask], ts[valid_mask]

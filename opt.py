@@ -64,18 +64,10 @@ def get_opts(prefix_args=None):
                         all_images: uniformly from all pixels of ALL images
                         same_image: uniformly from all pixels of a SAME image
                         ''')
-    parser.add_argument('--num_epochs',
-                        type=int,
-                        default=30,
-                        help='number of steps to train')
     parser.add_argument('--max_steps',
                         type=int,
                         default=20000,
                         help='number of steps to train')
-    parser.add_argument('--step_per_epoch',
-                        type=int,
-                        default=1000,
-                        help='number of steps per epoch')
     parser.add_argument('--lr', type=float, default=1e-2, help='learning rate')
     parser.add_argument(
         '--random_bg',
@@ -84,17 +76,6 @@ def get_opts(prefix_args=None):
         help='''whether to train with random bg color (real scene only)
                         to avoid objects with black color to be predicted as transparent
                         ''')
-
-    # validation options
-    parser.add_argument('--val_only',
-                        action='store_true',
-                        default=False,
-                        help='run only validation (need to provide ckpt_path)')
-    parser.add_argument('--no_save_test',
-                        action='store_true',
-                        default=False,
-                        help='whether to save test image and video')
-
     # misc
     parser.add_argument('--exp_name',
                         type=str,

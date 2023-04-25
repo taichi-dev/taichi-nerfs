@@ -166,7 +166,7 @@ class TaichiNGP(nn.Module):
             return sigmas, h
         return sigmas
 
-    def forward(self, x, d, **kwargs):
+    def forward(self, x, d):
         """
         Inputs:
             x: (N, 3) xyz in [-scale, scale]

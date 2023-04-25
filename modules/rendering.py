@@ -1,15 +1,23 @@
 import torch
 from einops import rearrange
 
-from .intersection import RayAABBIntersector
 from .ray_march import raymarching_test
-from .volume_render_test import composite_test as composite_test_fw
+from .intersection import ray_aabb_intersection
+from .volume_render_test import composite_test
 
 MAX_SAMPLES = 1024
 NEAR_DISTANCE = 0.01
 
 
-def render(model, rays_o, rays_d, **kwargs):
+def render(
+    model,
+    rays_o, 
+    rays_d, 
+    test_time=False,
+    exp_step_factor=0, 
+    T_threshold=1e-4, 
+    max_samples=MAX_SAMPLES,
+):
     """
     Render rays by
     1. Compute the intersection of the rays with the scene bounding box
@@ -24,31 +32,47 @@ def render(model, rays_o, rays_d, **kwargs):
     rays_o = rays_o.contiguous()
     rays_d = rays_d.contiguous()
 
-    _, hits_t, _ = RayAABBIntersector.apply(rays_o, rays_d, model.center,
-                                            model.half_size, 1)
-    hits_t[(hits_t[:, 0, 0] >= 0) & (hits_t[:, 0, 0] < NEAR_DISTANCE), 0,
-           0] = NEAR_DISTANCE
-    # _, hits_t, _ = \
-    #     RayAABBIntersector.apply(rays_o, rays_d, model.center, model.half_size, 1)
-    # hits_t[(hits_t[:, 0, 0]>=0)&(hits_t[:, 0, 0]<NEAR_DISTANCE), 0, 0] = NEAR_DISTANCE
+    hits_t = ray_aabb_intersection(
+        rays_o, 
+        rays_d, 
+        model.center, 
+        model.half_size, 
+    )
+    mask = (hits_t[:, 0] >= 0) & (hits_t[:, 0] < NEAR_DISTANCE)
+    hits_t[mask, 0] = NEAR_DISTANCE
 
-    if kwargs.get('test_time', False):
-        render_func = __render_rays_test
+    if test_time:
+        return __render_rays_test(
+            model, 
+            rays_o, 
+            rays_d, 
+            hits_t,
+            exp_step_factor=exp_step_factor,
+            T_threshold=T_threshold,
+            max_samples=max_samples,
+        )
     else:
-        render_func = __render_rays_train
+        return __render_rays_train(
+            model,
+            rays_o,
+            rays_d,
+            hits_t,
+            exp_step_factor=exp_step_factor,
+            T_threshold=T_threshold,
+        )
 
-    results = render_func(model, rays_o, rays_d, hits_t, **kwargs)
-    for k, v in results.items():
-        if kwargs.get('to_cpu', False):
-            v = v.cpu()
-            if kwargs.get('to_numpy', False):
-                v = v.numpy()
-        results[k] = v
-    return results
 
 
 @torch.no_grad()
-def __render_rays_test(model, rays_o, rays_d, hits_t, **kwargs):
+def __render_rays_test(
+    model, 
+    rays_o, 
+    rays_d, 
+    hits_t, 
+    exp_step_factor=0,
+    T_threshold=1e-4,
+    max_samples=MAX_SAMPLES,
+):
     """
     Render rays by
     while (a ray hasn't converged)
@@ -59,7 +83,6 @@ def __render_rays_test(model, rays_o, rays_d, hits_t, **kwargs):
            When more rays are dead, we can increase the number of samples
            of each marching (the variable @N_samples)
     """
-    exp_step_factor = kwargs.get('exp_step_factor', 0.)
     results = {}
 
     # output tensors to be filled in
@@ -75,7 +98,7 @@ def __render_rays_test(model, rays_o, rays_d, hits_t, **kwargs):
     # otherwise, 4 is more efficient empirically
     min_samples = 1 if exp_step_factor == 0 else 4
 
-    while samples < kwargs.get('max_samples', MAX_SAMPLES):
+    while samples < max_samples:
         N_alive = len(alive_indices)
         if N_alive == 0:
             break
@@ -84,32 +107,47 @@ def __render_rays_test(model, rays_o, rays_d, hits_t, **kwargs):
         N_samples = max(min(N_rays // N_alive, 64), min_samples)
         samples += N_samples
 
-        xyzs, dirs, deltas, ts, N_eff_samples = \
-            raymarching_test(rays_o, rays_d, hits_t[:, 0], alive_indices,
-                                  model.density_bitfield, model.cascades,
-                                  model.scale, exp_step_factor,
-                                  model.grid_size, MAX_SAMPLES, N_samples)
-        total_samples += N_eff_samples.sum()
-        xyzs = rearrange(xyzs, 'n1 n2 c -> (n1 n2) c')
-        dirs = rearrange(dirs, 'n1 n2 c -> (n1 n2) c')
-        valid_mask = ~torch.all(dirs == 0, dim=1)
-        if valid_mask.sum() == 0:
+        (
+            pack_info,
+            ray_indices,
+            deltas,
+            ts,
+        ) = raymarching_test(
+            rays_o, 
+            rays_d, 
+            hits_t, 
+            alive_indices,
+            model.density_bitfield, 
+            model.cascades,
+            model.scale, 
+            exp_step_factor,
+            model.grid_size, 
+            N_samples
+        )
+        if ray_indices.shape[0] == 0:
             break
+        ray_o_local = rays_o[ray_indices, :3]
+        ray_d_local = rays_d[ray_indices, :3]
+        xyzs = ray_o_local + ts[:, None] * ray_d_local
+        dirs = ray_d_local
 
-        sigmas = torch.zeros(len(xyzs), device=device)
-        rgbs = torch.zeros(len(xyzs), 3, device=device)
-        sigmas[valid_mask], _rgbs = model(xyzs[valid_mask], dirs[valid_mask],
-                                          **kwargs)
-        rgbs[valid_mask] = _rgbs.float()
-        sigmas = rearrange(sigmas, '(n1 n2) -> n1 n2', n2=N_samples)
-        rgbs = rearrange(rgbs, '(n1 n2) c -> n1 n2 c', n2=N_samples)
+        sigmas, rgbs = model(xyzs, dirs)
 
-        composite_test_fw(sigmas, rgbs, deltas, ts, hits_t[:,
-                                                           0], alive_indices,
-                          kwargs.get('T_threshold', 1e-4), N_eff_samples,
-                          opacity, depth, rgb)
-        alive_indices = alive_indices[alive_indices >=
-                                      0]  # remove converged rays
+        composite_test(
+            sigmas, 
+            rgbs, 
+            deltas, 
+            ts, 
+            pack_info,
+            alive_indices,
+            T_threshold, 
+            opacity, 
+            depth, 
+            rgb
+        )
+        # remove converged rays
+        alive_indices = alive_indices[alive_indices >= 0]  
+        total_samples += pack_info[:, 0].sum()
 
     results['opacity'] = opacity
     results['depth'] = depth
@@ -125,7 +163,14 @@ def __render_rays_test(model, rays_o, rays_d, hits_t, **kwargs):
     return results
 
 
-def __render_rays_train(model, rays_o, rays_d, hits_t, **kwargs):
+def __render_rays_train(
+    model, 
+    rays_o, 
+    rays_d, 
+    hits_t, 
+    exp_step_factor=0,
+    T_threshold=1e-4,
+):
     """
     Render rays by
     1. March the rays along their directions, querying @density_bitfield
@@ -136,35 +181,52 @@ def __render_rays_train(model, rays_o, rays_d, hits_t, **kwargs):
     3. Use volume rendering to combine the result (front to back compositing
        and early stop the ray if its transmittance is below a threshold)
     """
-    exp_step_factor = kwargs.get('exp_step_factor', 0.)
     results = {}
 
-    (rays_a, xyzs, dirs,
-    results['deltas'], results['ts'], results['rm_samples']) = \
-        model.ray_marching(
-            rays_o, rays_d, hits_t[:, 0], model.density_bitfield,
-            model.cascades, model.scale,
-            exp_step_factor, model.grid_size, MAX_SAMPLES)
+    (
+        rays_a,
+        xyzs, 
+        dirs,
+        results['deltas'], 
+        results['ts'], 
+        results['rm_samples']
+    ) = model.ray_marching(
+        rays_o,
+        rays_d,
+        hits_t, 
+        model.density_bitfield,
+        model.cascades, 
+        model.scale,
+        exp_step_factor, 
+        model.grid_size, 
+        MAX_SAMPLES
+    )
 
-    for k, v in kwargs.items():  # supply additional inputs, repeated per ray
-        if isinstance(v, torch.Tensor):
-            kwargs[k] = torch.repeat_interleave(v[rays_a[:, 0]], rays_a[:, 2],
-                                                0)
-    sigmas, rgbs = model(xyzs, dirs, **kwargs)
+    sigmas, rgbs = model(xyzs, dirs)
 
-    (results['vr_samples'], results['opacity'],
-    results['depth'], results['rgb'], results['ws']) = \
-        model.render_func(sigmas, rgbs, results['deltas'], results['ts'],
-                            rays_a, kwargs.get('T_threshold', 1e-4))
+    (
+        results['vr_samples'], 
+        results['opacity'],
+        results['depth'], 
+        results['rgb'], 
+        results['ws']
+    ) = model.render_func(
+        sigmas, 
+        rgbs, 
+        results['deltas'], 
+        results['ts'],
+        rays_a,
+        T_threshold
+    )
+
     results['rays_a'] = rays_a
 
-    if exp_step_factor == 0:  # synthetic
+    if exp_step_factor == 0: 
+        # synthetic
         rgb_bg = torch.ones(3, device=rays_o.device)
-    else:  # real
-        if kwargs.get('random_bg', False):
-            rgb_bg = torch.rand(3, device=rays_o.device)
-        else:
-            rgb_bg = torch.zeros(3, device=rays_o.device)
+    else: 
+        # real
+        rgb_bg = torch.zeros(3, device=rays_o.device)
     results['rgb'] = results['rgb'] + \
                      rgb_bg*rearrange(1-results['opacity'], 'n -> n 1')
 

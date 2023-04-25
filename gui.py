@@ -112,30 +112,24 @@ class NGPGUI:
 
     def render_cam(self):
         t = time.time()
-        # with torch.autocast(device_type='cuda', dtype=torch.float16):
-        directions = get_ray_directions(
-            self.cam.H,
-            self.cam.W,
-            self.cam.K,
-            device='cuda'
-        )
-        rays_o, rays_d = get_rays(
-            directions,
-            torch.cuda.FloatTensor(self.cam.pose)
-        )
-
-        kwargs = {
-            'test_time': True,
-            'random_bg': self.hparams.random_bg,
-            'exp_step_factor': self.exp_step_factor,
-        }
-
-        results = render(
-            self.model, 
-            rays_o, 
-            rays_d, 
-            **kwargs,
-        )
+        with torch.autocast(device_type='cuda', dtype=torch.float16):
+            directions = get_ray_directions(
+                self.cam.H,
+                self.cam.W,
+                self.cam.K,
+                device='cuda'
+            )
+            rays_o, rays_d = get_rays(
+                directions,
+                torch.cuda.FloatTensor(self.cam.pose)
+            )
+            results = render(
+                self.model, 
+                rays_o, 
+                rays_d, 
+                test_time=True,
+                exp_step_factor=self.exp_step_factor,
+            )
 
         rgb = rearrange(results["rgb"], "(h w) c -> h w c", h=self.H)
         depth = rearrange(results["depth"], "(h w) -> h w", h=self.H)

@@ -22,4 +22,4 @@ python3 colmap2nerf.py --video_in $VIDEO_FILE --video_fps $VIDEO_FPS --run_colma
 mv colmap_sparse sparse
 popd
 
-python3 train.py --root_dir data --dataset_name colmap --exp_name custom --downsample 0.25  --num_epochs 20 --scale $SCALE --gui
+python3 train.py --root_dir data --dataset_name colmap --exp_name custom --downsample 0.25 --scale $SCALE --gui
