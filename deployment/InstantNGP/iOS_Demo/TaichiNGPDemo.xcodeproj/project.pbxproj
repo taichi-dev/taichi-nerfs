@@ -22,7 +22,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		0CDD77FD299DF70500E02190 /* TaichiNerfTestbench.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TaichiNerfTestbench.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0CDD77FD299DF70500E02190 /* TaichiNGPDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TaichiNGPDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0CDD7800299DF70500E02190 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		0CDD7801299DF70500E02190 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		0CDD7803299DF70500E02190 /* SceneDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SceneDelegate.h; sourceTree = "<group>"; };
@@ -33,7 +33,7 @@
 		0CDD780F299DF70500E02190 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		0CDD7811299DF70500E02190 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		0CDD7812299DF70500E02190 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
-		0CDD781B299DFA7C00E02190 /* libtaichi_c_api.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; name = libtaichi_c_api.a; path = TaichiNerfTestbench/c_api/lib/libtaichi_c_api.a; sourceTree = "<group>"; };
+		0CDD781B299DFA7C00E02190 /* libtaichi_c_api.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; name = libtaichi_c_api.a; path = TaichiNGPDemo/c_api/lib/libtaichi_c_api.a; sourceTree = "<group>"; };
 		0CDD781D299DFBC600E02190 /* libc++.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = "libc++.tbd"; path = "usr/lib/libc++.tbd"; sourceTree = SDKROOT; };
 		9F9565FE29F68CDB00126372 /* stb_image_writer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stb_image_writer.h; sourceTree = "<group>"; };
 		9F9565FF29F68CDB00126372 /* utils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = utils.cpp; sourceTree = "<group>"; };
@@ -60,7 +60,7 @@
 		0CDD77F4299DF70500E02190 = {
 			isa = PBXGroup;
 			children = (
-				0CDD77FF299DF70500E02190 /* TaichiNerfTestbench */,
+				0CDD77FF299DF70500E02190 /* TaichiNGPDemo */,
 				0CDD77FE299DF70500E02190 /* Products */,
 				0CDD7819299DF7D500E02190 /* Frameworks */,
 			);
@@ -69,12 +69,12 @@
 		0CDD77FE299DF70500E02190 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				0CDD77FD299DF70500E02190 /* TaichiNerfTestbench.app */,
+				0CDD77FD299DF70500E02190 /* TaichiNGPDemo.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		0CDD77FF299DF70500E02190 /* TaichiNerfTestbench */ = {
+		0CDD77FF299DF70500E02190 /* TaichiNGPDemo */ = {
 			isa = PBXGroup;
 			children = (
 				9FCC345E29F7C6A300B42409 /* c_api */,
@@ -91,7 +91,7 @@
 				0CDD7811299DF70500E02190 /* Info.plist */,
 				0CDD7812299DF70500E02190 /* main.mm */,
 			);
-			path = TaichiNerfTestbench;
+			path = TaichiNGPDemo;
 			sourceTree = "<group>";
 		};
 		0CDD7819299DF7D500E02190 /* Frameworks */ = {
@@ -119,9 +119,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		0CDD77FC299DF70500E02190 /* TaichiNerfTestbench */ = {
+		0CDD77FC299DF70500E02190 /* TaichiNGPDemo */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 0CDD7816299DF70500E02190 /* Build configuration list for PBXNativeTarget "TaichiNerfTestbench" */;
+			buildConfigurationList = 0CDD7816299DF70500E02190 /* Build configuration list for PBXNativeTarget "TaichiNGPDemo" */;
 			buildPhases = (
 				9FF5AD81299E29140019CCC1 /* Check for C-API & Generate AOT Files */,
 				0CDD77F9299DF70500E02190 /* Sources */,
@@ -132,9 +132,9 @@
 			);
 			dependencies = (
 			);
-			name = TaichiNerfTestbench;
-			productName = TaichiNerfTestbench;
-			productReference = 0CDD77FD299DF70500E02190 /* TaichiNerfTestbench.app */;
+			name = TaichiNGPDemo;
+			productName = TaichiNGPDemo;
+			productReference = 0CDD77FD299DF70500E02190 /* TaichiNGPDemo.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -151,7 +151,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 0CDD77F8299DF70500E02190 /* Build configuration list for PBXProject "TaichiNerfTestbench" */;
+			buildConfigurationList = 0CDD77F8299DF70500E02190 /* Build configuration list for PBXProject "TaichiNGPDemo" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -164,7 +164,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				0CDD77FC299DF70500E02190 /* TaichiNerfTestbench */,
+				0CDD77FC299DF70500E02190 /* TaichiNGPDemo */,
 			);
 		};
 /* End PBXProject section */
@@ -375,7 +375,7 @@
 					"${PROJECT_DIR}/instant_ngp",
 					"${PROJECT_DIR}",
 				);
-				INFOPLIST_FILE = TaichiNerfTestbench/Info.plist;
+				INFOPLIST_FILE = TaichiNGPDemo/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -423,7 +423,7 @@
 					"${PROJECT_DIR}/instant_ngp",
 					"${PROJECT_DIR}",
 				);
-				INFOPLIST_FILE = TaichiNerfTestbench/Info.plist;
+				INFOPLIST_FILE = TaichiNGPDemo/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -449,7 +449,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		0CDD77F8299DF70500E02190 /* Build configuration list for PBXProject "TaichiNerfTestbench" */ = {
+		0CDD77F8299DF70500E02190 /* Build configuration list for PBXProject "TaichiNGPDemo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				0CDD7814299DF70500E02190 /* Debug */,
@@ -458,7 +458,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		0CDD7816299DF70500E02190 /* Build configuration list for PBXNativeTarget "TaichiNerfTestbench" */ = {
+		0CDD7816299DF70500E02190 /* Build configuration list for PBXNativeTarget "TaichiNGPDemo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				0CDD7817299DF70500E02190 /* Debug */,

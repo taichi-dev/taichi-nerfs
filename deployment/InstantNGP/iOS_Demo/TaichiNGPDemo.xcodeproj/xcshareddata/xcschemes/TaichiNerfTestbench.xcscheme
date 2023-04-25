@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "0CDD77FC299DF70500E02190"
-               BuildableName = "TaichiNerfTestbench.app"
-               BlueprintName = "TaichiNerfTestbench"
-               ReferencedContainer = "container:TaichiNerfTestbench.xcodeproj">
+               BuildableName = "TaichiNGPDemo.app"
+               BlueprintName = "TaichiNGPDemo"
+               ReferencedContainer = "container:TaichiNGPDemo.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -45,9 +45,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "0CDD77FC299DF70500E02190"
-            BuildableName = "TaichiNerfTestbench.app"
-            BlueprintName = "TaichiNerfTestbench"
-            ReferencedContainer = "container:TaichiNerfTestbench.xcodeproj">
+            BuildableName = "TaichiNGPDemo.app"
+            BlueprintName = "TaichiNGPDemo"
+            ReferencedContainer = "container:TaichiNGPDemo.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -62,9 +62,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "0CDD77FC299DF70500E02190"
-            BuildableName = "TaichiNerfTestbench.app"
-            BlueprintName = "TaichiNerfTestbench"
-            ReferencedContainer = "container:TaichiNerfTestbench.xcodeproj">
+            BuildableName = "TaichiNGPDemo.app"
+            BlueprintName = "TaichiNGPDemo"
+            ReferencedContainer = "container:TaichiNGPDemo.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
