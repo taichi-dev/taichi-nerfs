@@ -41,6 +41,7 @@ For our example only, `taichi_ngp.py` already supports adjusting the camera reso
 `python3 InstantNGP/taichi_ngp.py --scene smh_lego --aot --res_w=100 --res_h=200`
 
 3. **Modify the `width` and `height` in C++ code accordingly**
+
 open `main.cpp` and modify the following lines:
 ```
 int img_width  = 300;
