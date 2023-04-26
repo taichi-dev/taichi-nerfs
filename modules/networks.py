@@ -74,6 +74,7 @@ class TaichiNGP(nn.Module):
         if args.encoder_type == 'hash':
             self.pos_encoder = HashEncoder(
                 self.b,
+                2**log2_T,
                 args.batch_size,
                 half2_opt=args.half2_opt
             )
