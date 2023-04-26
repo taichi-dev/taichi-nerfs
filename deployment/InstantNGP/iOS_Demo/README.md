@@ -38,7 +38,23 @@ For our example only, `taichi_ngp.py` already supports adjusting the camera reso
 2. Regenerate AOT files:
 `python3 InstantNGP/taichi_ngp.py --scene smh_lego --aot --res_w=100 --res_h=200`
 
-3. Install the Demo following steps from **Build and Install the Demo**
+3. Modify the width and height in C++ code accordingly 
+
+open ViewController.mm and modify the following lines:
+```
+int img_width = 100;
+int img_height = 200;
+app_f32.initialize(img_width, img_height,
+                   std::string([aotFilePath UTF8String]),
+                   std::string([hashEmbeddingFilePath UTF8String]),
+                   std::string([sigmaWeightsFilePath UTF8String]),
+                   std::string([rgbWeightsFilePath UTF8String]),
+                   std::string([densityBitfieldFilePath UTF8String]),
+                   std::string([poseFilePath UTF8String]),
+                   std::string([directionsFilePath UTF8String]));
+```
+
+4. Install the Demo following steps from **Build and Install the Demo**
 
 ## Train and deploy your own NGP model
 [TODO: train + deploy]
