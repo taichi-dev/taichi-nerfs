@@ -6,23 +6,39 @@
 3. Xcode: https://developer.apple.com/xcode
 
 4. Turn on **Developer Mode** for your device
-[Image]
+ 
+`Settings: Privacy & Security --> Developer Mode`
+
+<img width="200" alt="image" src="https://user-images.githubusercontent.com/22334008/234472321-54f6d270-3b88-448a-8941-fdbb1ef834b1.png">
 
 
 ## Build and Install the Demo
 1. Open the TaichiNGPDemo.xcodeproj in Xcode
 
 2. Configure app signature
-[Image]
+
+- Click on `TaichiNGPDemo` on the sidebar, then switch to the `Signing & Capabilities` tab
+- Add your Apple account to `Team` and just randomly make up a Bundle identifier
+
+<img width="500" alt="image" src="https://user-images.githubusercontent.com/22334008/234472482-49b786fe-f1d5-4936-854c-cf09dd47ca98.png">
+
 
 3. Select the target device
-[Image]
+
+<img width="500" alt="image" src="https://user-images.githubusercontent.com/22334008/234473478-122a151f-c841-4990-be6a-0799447aa69d.png">
+
 
 4. Click `Product --> Run`
-[Image]
+
+<img width="500" alt="image" src="https://user-images.githubusercontent.com/22334008/234473561-07a06376-91bc-4e57-8454-83c0683251b9.png">
+
 
 5. Trust your app on the device
-[Image]
+
+`Settings: General --> VPN & Device Management --> App Development --> Trust`
+
+<img width="400" alt="image" src="https://user-images.githubusercontent.com/22334008/234473586-be8d8032-cf54-43ed-81a8-f636d7c2b37c.png">
+
 
 Now, re-run the code and enjoy Nerf on your phone!
 [Demo]
