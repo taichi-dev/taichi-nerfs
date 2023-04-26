@@ -6,8 +6,7 @@
 3. Xcode: https://developer.apple.com/xcode
 
 4. Turn on **Developer Mode** for your device
- 
-`Settings: Privacy & Security --> Developer Mode`
+  * `Settings: Privacy & Security --> Developer Mode`
 
 <img width="200" alt="image" src="https://user-images.githubusercontent.com/22334008/234472321-54f6d270-3b88-448a-8941-fdbb1ef834b1.png">
 
@@ -16,7 +15,6 @@
 1. Open the TaichiNGPDemo.xcodeproj in Xcode
 
 2. Configure app signature
-
 - Click on `TaichiNGPDemo` on the sidebar, then switch to the `Signing & Capabilities` tab
 - Add your Apple account to `Team` and just randomly make up a Bundle identifier
 
@@ -34,8 +32,7 @@
 
 
 5. Trust your app on the device
-
-`Settings: General --> VPN & Device Management --> App Development --> Trust`
+  * `Settings: General --> VPN & Device Management --> App Development --> Trust`
 
 <img width="400" alt="image" src="https://user-images.githubusercontent.com/22334008/234473586-be8d8032-cf54-43ed-81a8-f636d7c2b37c.png">
 
@@ -49,14 +46,14 @@ Sometimes you may want to modify the Taichi NGP model in `taichi_ngp.py` for fun
 For example, let's say we want to adjust the camera resolution. 
 
 1. Modify `taichi_ngp.py`:
-For our example only, `taichi_ngp.py` already supports adjusting the camera resolution via `--res_w` `--res_h`
+  * For our example only, `taichi_ngp.py` already supports adjusting the camera resolution via `--res_w` `--res_h`
 
 2. Regenerate AOT files:
-`python3 InstantNGP/taichi_ngp.py --scene smh_lego --aot --res_w=100 --res_h=200`
+  * `python3 InstantNGP/taichi_ngp.py --scene smh_lego --aot --res_w=100 --res_h=200`
 
 3. Modify the width and height in C++ code accordingly 
 
-open ViewController.mm and modify the following lines:
+  * open ViewController.mm and modify the following lines:
 ```
 int img_width = 100;
 int img_height = 200;
