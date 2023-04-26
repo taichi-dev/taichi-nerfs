@@ -27,7 +27,7 @@ sh scripts/compile_and_run_nerf.sh
 ```
 
 3. Checkout the output image
-You'll notice a `out.png` generated in the same folder, which contains the **inferenced image** with current **camera position**.
+  * You'll notice a `out.png` generated in the same folder, which contains the **inferenced image** with current **camera position**.
 
 ## Deploy with modified taichi_ngp.py
 Sometimes you may want to modify the Taichi NGP model in `taichi_ngp.py` for fun. Once done editing `taichi_ngp.py`, you will need to regenerate the AOT files (`InstantNGP/taichi_ngp/compiled`). 
@@ -41,8 +41,7 @@ For our example only, `taichi_ngp.py` already supports adjusting the camera reso
 `python3 InstantNGP/taichi_ngp.py --scene smh_lego --aot --res_w=100 --res_h=200`
 
 3. Modify the `width` and `height` in C++ code accordingly
-
-open `main.cpp` and modify the following lines:
+  * open `main.cpp` and modify the following lines:
 ```
 int img_width  = 100;
 int img_height = 200;
