@@ -48,11 +48,13 @@ For example, let's say we want to adjust the camera resolution.
 1. Modify `taichi_ngp.py`:
   * For our example only, `taichi_ngp.py` already supports adjusting the camera resolution via `--res_w` `--res_h`
 
-2. Regenerate AOT files:
+2. Install Taichi v1.5.0:
+  * `python3 -m pip install taichi==1.5.0`
+
+3. Regenerate AOT files:
   * `python3 InstantNGP/taichi_ngp.py --scene smh_lego --aot --res_w=100 --res_h=200`
 
-3. Modify the width and height in C++ code accordingly 
-
+4. Modify the width and height in C++ code accordingly 
   * open ViewController.mm and modify the following lines:
 ```
 int img_width = 100;
