@@ -41,7 +41,7 @@ Now, re-run the code and enjoy Nerf on your phone!
 [Demo]
 
 ## Deploy with modified taichi_ngp.py
-Sometimes you may want to modify the Taichi NGP model in `taichi_ngp.py` for fun. Once done editing `taichi_ngp.py`, you will need to regenerate the AOT files (`InstantNGP/taichi_ngp/compiled`). 
+You may happen to modify the Taichi NGP model in `taichi_ngp.py`. Once done editing `taichi_ngp.py`, you will need to regenerate the AOT files (`InstantNGP/taichi_ngp/compiled`). 
 
 For example, let's say we want to adjust the camera resolution. 
 
