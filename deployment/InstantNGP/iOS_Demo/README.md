@@ -1,21 +1,44 @@
-# Regenerate AOT files
-The Taichi-Python to be used for generating AOT files should match the version of the `libtaichi_c_api.a`. 
-For inference with float32 precision:
-```
-python3 deployment/instant_ngp/assets/taichi_ngp.py --scene smh_lego --aot --res_w=800 --res_h=800
-```
+# Taichi NGP iOS Demo
 
-For inference with float16 precision:
-```
-python3 deployment/instant_ngp/assets/taichi_ngp.py --scene smh_lego --aot --fp16 --res_w=800 --res_h=800 --output deployment/instant_ngp_fp16/assets/compiled
-```
+## Prerequisites 
+1. Machine running MacOS 
+2. Device running iOS with Metal support (typically iPhones or iPads)
+3. Xcode: https://developer.apple.com/xcode
 
-# How to regenerate iOS AOT library
-```
-cd taichi-nerf/deployment
-TAICHI_REPO_DIR=${TAICHI_REPO} sh scripts/build-taichi-ios.sh
-cp build-taichi-ios-arm64/install/c_api/lib/libtaichi_c_api.a TaichiNerf_IOS/TaichiNerfTestbench/c_api/lib/
-```
+4. Turn on **Developer Mode** for your device
+[Image]
 
-# How to check output image
-We enabled File Sharing for this the iOS App, and you can simply view the output image using "Finder".
+
+## Build and Install the Demo
+1. Open the TaichiNGPDemo.xcodeproj in Xcode
+
+2. Configure app signature
+[Image]
+
+3. Select the target device
+[Image]
+
+4. Click `Product --> Run`
+[Image]
+
+5. Trust your app on the device
+[Image]
+
+Now, re-run the code and enjoy Nerf on your phone!
+[Demo]
+
+## Deploy with modified taichi_ngp.py
+Sometimes you may want to modify the Taichi NGP model in `taichi_ngp.py` for fun. Once done editing `taichi_ngp.py`, you will need to regenerate the AOT files (`InstantNGP/taichi_ngp/compiled`). 
+
+For example, let's say we want to adjust the camera resolution. 
+
+1. Modify `taichi_ngp.py`:
+For our example only, `taichi_ngp.py` already supports adjusting the camera resolution via `--res_w` `--res_h`
+
+2. Regenerate AOT files:
+`python3 InstantNGP/taichi_ngp.py --scene smh_lego --aot --res_w=100 --res_h=200`
+
+3. Install the Demo following steps from **Build and Install the Demo**
+
+## Train and deploy your own NGP model
+[TODO: train + deploy]
