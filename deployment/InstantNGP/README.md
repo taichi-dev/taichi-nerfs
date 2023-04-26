@@ -11,8 +11,8 @@ With Taichi AOT, you can deploy Taichi kernels to various platforms: iOS, Androi
 [TODO: Demos]
 
 ## iOS Demo
-[TODO: Link to iOS folder]
+[Checkout our iOS Demo](iOS_Demo)
 
 
 ## Android Demo
-[TODO: Link to Android folder]
+[Checkout our Android Demo](Android_Demo)
