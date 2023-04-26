@@ -1,7 +1,7 @@
 # Taichi NGP Android Demo
 Our Android Demo is a semi-finished product at this moment, due to lack of expertise in Android development. 
 
-We support the entire infrastructure from setting up the **camera position** to finally generate the **inferenced image**. However the camera position is directly set in the code, while the inferenced image is written to the disk. To make it a real Demo, consider connecting the camera position with a **Touch Event**, and pass the inferenced image to **Android GUI**.
+We support the entire infrastructure from setting up the `camera position` to finally generate the `inferenced image`. However the camera position is directly set in the code, while the inferenced image is written to the disk. To make it a real Demo, consider connecting the camera position with a `Touch Event`, and pass the inferenced image to `Android GUI`.
 
 Besides, there's also performance optimization opportunities wrt Android deployment. 
 
@@ -40,7 +40,7 @@ For our example only, `taichi_ngp.py` already supports adjusting the camera reso
 2. Regenerate AOT files:
 `python3 InstantNGP/taichi_ngp.py --scene smh_lego --aot --res_w=100 --res_h=200`
 
-3. **Modify the `width` and `height` in C++ code accordingly**
+3. Modify the `width` and `height` in C++ code accordingly
 
 open `main.cpp` and modify the following lines:
 ```
