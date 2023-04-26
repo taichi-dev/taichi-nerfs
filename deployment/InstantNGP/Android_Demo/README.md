@@ -14,6 +14,7 @@ Besides, there's also performance optimization opportunities wrt Android deploym
 
 ## Build and Install the Demo
 1. Change camera position if neccessary
+
 Open `main.cpp` and modify the following lines:
 ```
 float angle_x, angle_y, angle_z = 0.0;
