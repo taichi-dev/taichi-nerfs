@@ -69,7 +69,7 @@ app_f32.initialize(img_width, img_height,
                    std::string([directionsFilePath UTF8String]));
 ```
 
-4. Install the Demo following steps from **Build and Install the Demo**
+5. Install the Demo following steps from **Build and Install the Demo**
 
 ## Train and deploy your own NGP model
 [TODO: train + deploy]
