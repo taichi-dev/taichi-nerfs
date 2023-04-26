@@ -44,8 +44,8 @@ For our example only, `taichi_ngp.py` already supports adjusting the camera reso
 
 open `main.cpp` and modify the following lines:
 ```
-int img_width  = 300;
-int img_height = 600;
+int img_width  = 100;
+int img_height = 200;
 app.initialize(img_width, img_height,
                aot_file_root,
                hash_embedding_path,
