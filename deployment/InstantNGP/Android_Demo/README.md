@@ -3,7 +3,9 @@ Our Android Demo is a semi-finished product at this moment, due to lack of exper
 
 We support the entire infrastructure from setting up the `camera position` to finally generate the `inferenced image`. However the camera position is directly set in the code, while the inferenced image is written to the disk. To make it a real Demo, consider connecting the camera position with a `Touch Event`, and pass the inferenced image to `Android GUI`.
 
-Besides, there's also performance optimization opportunities wrt Android deployment. 
+Please be aware that there are known issues with certain Android devices, which is primarily related to their Vulkan support.
+
+There's also performance optimization opportunities wrt Android deployment. 
 
 **We welcome all contributions to improve the quality of the Android Demo!**
 
