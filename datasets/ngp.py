@@ -50,19 +50,22 @@ class NGPDataset(BaseDataset):
 
         print(f'Loading {len(frames)} {split} images ...')
         for frame in tqdm(frames):
-            c2w = np.array(frame['transform_matrix'])[:3, :4]
+            img_path = os.path.join(
+                self.root_dir,
+                f"{frame['file_path']}"
+            )
 
+            if not os.path.exists(img_path):
+                continue
+            
+            img = read_image(img_path, self.img_wh)
+            self.rays += [img]
+
+            c2w = np.array(frame['transform_matrix'])[:3, :4]
+            c2w[:, 1:3] *= -1 
             self.poses += [c2w]
 
-            try:
-                img_path = os.path.join(self.root_dir,
-                                        f"{frame['file_path']}")
-                img = read_image(img_path, self.img_wh)
-                self.rays += [img]
-            except:
-                print("can not read image")
 
         if len(self.rays) > 0:
-            self.rays = torch.FloatTensor(np.stack(
-                self.rays))  # (N_images, hw, ?)
+            self.rays = torch.FloatTensor(np.stack(self.rays))  # (N_images, hw, ?)
         self.poses = torch.FloatTensor(self.poses)  # (N_images, 3, 4)
