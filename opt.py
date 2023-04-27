@@ -108,4 +108,8 @@ def get_opts(prefix_args=None):
     # performance profile
     parser.add_argument('--perf', action='store_true', default=False)
 
+    # use deployment or not
+    parser.add_argument('--deployment', action='store_true', default=False)
+
+
     return parser.parse_args(prefix_args)

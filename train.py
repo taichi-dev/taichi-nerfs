@@ -47,9 +47,12 @@ class NeRFSystem(LightningModule):
         self.val_ssim = StructuralSimilarityIndexMeasure(data_range=1)
 
         rgb_act = 'Sigmoid'
-        self.model = TaichiNGP(self.hparams,
-                               scale=self.hparams.scale,
-                               rgb_act=rgb_act)
+        self.model = TaichiNGP(
+            self.hparams,
+            scale=self.hparams.scale,
+            rgb_act=rgb_act,
+            deployment=self.hparams.deployment,
+        )
         G = self.model.grid_size
         self.model.register_buffer('density_grid',
                                    torch.zeros(self.model.cascades, G**3))
@@ -308,6 +311,31 @@ if __name__ == '__main__':
         trainer.validate(system, verbose=True)
     else:
         trainer.fit(system)
+
+    if hparams.deployment:
+        padding = torch.zeros(13, 16)
+        rgb_out = system.model.rgb_net.output_layer.weight
+        print(rgb_out.shape)
+        rgb_out = torch.cat([rgb_out, padding], dim=0)
+        new_dict = {
+            # 'camera_angle_x': meta['camera_angle_x'],
+            # 'K': system.train_dataset.K.numpy(),
+            'poses': system.poses.numpy(),
+            'model.density_bitfield': system.model.density_bitfield.numpy(),
+            'model.hash_encoder.params': system.model.pos_encoder.hash_table.detach().numpy(),
+            'model.per_level_scale': system.model.per_level_scale.numpy()[0],
+            'model.xyz_encoder.params': 
+                torch.cat(
+                    [system.model.xyz_encoder.hidden_layers[0].weight.detach().reshape(-1),
+                    system.model.xyz_encoder.output_layer.weight.detach().reshape(-1)]
+                ).numpy(),
+            'model.rgb_net.params': 
+                torch.cat(
+                    [system.model.rgb_net.hidden_layers[0].weight.detach().reshape(-1),
+                    rgb_out.detach().reshape(-1)]
+                ).numpy(),
+        }
+        np.save('deployment.npy', new_dict)
 
     if not hparams.no_save_test:  # save video
         imgs = sorted(glob.glob(os.path.join(system.val_dir, 'rgb_*.png')))

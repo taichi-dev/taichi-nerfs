@@ -1,3 +1,4 @@
+import math
 from typing import Callable, Optional
 
 # from .custom_functions import TruncExp
@@ -7,6 +8,7 @@ from einops import rearrange
 from torch import nn
 from torch.cuda.amp import custom_bwd, custom_fwd
 
+from .hash_encoder_deploy import HashEncoder as HashEncoderDe
 from .hash_encoder import HashEncoder
 from .triplane import TriPlaneEncoder
 from .ray_march import RayMarcher
@@ -41,7 +43,8 @@ class TaichiNGP(nn.Module):
             F=2, # number of features per level
             log2_T=19, # maximum number of entries per level 2^19
             N_min=16, # minimum resolution of  hash table
-            rgb_act='Sigmoid'
+            rgb_act='Sigmoid',
+            deployment=False,
         ):
         super().__init__()
         self.rgb_act = rgb_act
@@ -61,23 +64,35 @@ class TaichiNGP(nn.Module):
             torch.zeros(self.cascades * self.grid_size**3 // 8,
                         dtype=torch.uint8))
 
-        # constants
-        max_resolution = 2048 # maximum resolution of the hash table
-        b = np.exp(np.log(max_resolution * scale / N_min) / (L - 1)) 
-        print(f'GridEncoding: Nmin={N_min} b={b:.5f} F={F} T=2^{log2_T} L={L}')
-        self.b = b
-        # self.b = self.hash_encoder.native_tcnn_module.hyperparams(
-        # )['per_level_scale']
 
         self.ray_marching = RayMarcher(args.batch_size)
 
         if args.encoder_type == 'hash':
-            self.pos_encoder = HashEncoder(
-                b=self.b,
-                max_params=2**log2_T,
-                batch_size=args.batch_size,
-                half2_opt=args.half2_opt
-            )
+            if deployment:
+                b=1.587401032447815
+                self.register_buffer('per_level_scale', torch.tensor([b, ]))
+                self.pos_encoder = HashEncoderDe(
+                    b=b,
+                    max_params=2**21,
+                    base_res=32,
+                    hash_level=4,
+                    feature_per_level=4,
+                    batch_size=args.batch_size,
+                )
+            else:
+                # constants
+                max_resolution = 2048 # maximum resolution of the hash table
+                b = np.exp(np.log(max_resolution * scale / N_min) / (L - 1)) 
+                print(f'GridEncoding: Nmin={N_min} b={b:.5f} F={F} T=2^{log2_T} L={L}')
+                self.b = b
+                # self.b = self.hash_encoder.native_tcnn_module.hyperparams(
+                # )['per_level_scale']
+                self.pos_encoder = HashEncoder(
+                    b=self.b,
+                    max_params=2**log2_T,
+                    batch_size=args.batch_size,
+                    half2_opt=args.half2_opt
+                )
         elif args.encoder_type == 'triplane':
             self.pos_encoder = TriPlaneEncoder(
                 args.batch_size,
@@ -88,24 +103,44 @@ class TaichiNGP(nn.Module):
 
         self.render_func = VolumeRendererTaichi(args.batch_size)
 
-        self.xyz_encoder = \
-            MLP(
-                input_dim=32,
-                output_dim=16,
-                net_depth=1,
-                net_width=64,
-                bias_enabled=False,
-            )
+        if deployment:
+            self.xyz_encoder = \
+                MLP(
+                    input_dim=16,
+                    output_dim=16,
+                    net_depth=1,
+                    net_width=16,
+                    bias_enabled=False,
+                )
 
-        self.rgb_net = \
-            MLP(
-                input_dim=32,
-                output_dim=3,
-                net_depth=2,
-                net_width=64,
-                bias_enabled=False,
-                output_activation=nn.Sigmoid()
-            )
+            self.rgb_net = \
+                MLP(
+                    input_dim=32,
+                    output_dim=3,
+                    net_depth=1,
+                    net_width=16,
+                    bias_enabled=False,
+                    output_activation=nn.Sigmoid()
+                )
+        else:
+            self.xyz_encoder = \
+                MLP(
+                    input_dim=32,
+                    output_dim=16,
+                    net_depth=1,
+                    net_width=64,
+                    bias_enabled=False,
+                )
+
+            self.rgb_net = \
+                MLP(
+                    input_dim=32,
+                    output_dim=3,
+                    net_depth=2,
+                    net_width=64,
+                    bias_enabled=False,
+                    output_activation=nn.Sigmoid()
+                )
 
         if self.rgb_act == 'None':  # rgb_net output is log-radiance
             for i in range(3):  # independent tonemappers for r,g,b

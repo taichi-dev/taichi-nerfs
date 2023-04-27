@@ -167,7 +167,9 @@ class HashEncoder(torch.nn.Module):
 
     def __init__(self,
                  b=1.3195079565048218,
-                 max_params=2**19,
+                 max_params: float=2**19,
+                 hash_level: int=16,
+                 base_res: float=16,
                  batch_size=8192,
                  data_type=data_type,
                  half2_opt=False):
@@ -182,10 +184,9 @@ class HashEncoder(torch.nn.Module):
         self.offsets = ti.field(ti.i32, shape=(16, ))
         self.hash_map_sizes_field = ti.field(ti.uint32, shape=(16, ))
         self.hash_map_indicator = ti.field(ti.i32, shape=(16, ))
-        base_res = 16
         offset_ = 0
         hash_map_sizes = []
-        for i in range(16):
+        for i in range(hash_level):
             resolution = int(
                 np.ceil(base_res * np.exp(i * np.log(self.per_level_scale)) -
                         1.0)) + 1
