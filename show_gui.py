@@ -80,8 +80,12 @@ class NGPGUI:
     def __init__(self, hparams, K, img_wh, poses, radius=2.5):
         self.hparams = hparams
         rgb_act = 'Sigmoid'
-        self.model = TaichiNGP(hparams, scale=hparams.scale,
-                               rgb_act=rgb_act).cuda()
+        self.model = TaichiNGP(
+            hparams,
+            scale=hparams.scale,
+            rgb_act=rgb_act,
+            deployment=hparams.deployment,
+        ).cuda()
         load_ckpt(self.model,
                   hparams.ckpt_path,
                   prefixes_to_ignore=['grid_coords', 'density_grid'])

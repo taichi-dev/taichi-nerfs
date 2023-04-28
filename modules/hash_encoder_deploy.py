@@ -111,7 +111,6 @@ class HashEncoder(torch.nn.Module):
 
         self.per_level_scale = b
 
-        # per_level_scale = 1.3195079565048218
         print("per_level_scale: ", b)
         self.offsets = ti.field(ti.i32, shape=(hash_level, ))
         offset_ = 0
