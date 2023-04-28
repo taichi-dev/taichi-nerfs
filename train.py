@@ -15,7 +15,7 @@ from kornia.utils.grid import create_meshgrid3d
 from modules.losses import NeRFLoss
 from modules.networks import TaichiNGP
 from modules.rendering import MAX_SAMPLES, render
-from modules.utils import load_ckpt, depth2img
+from modules.utils import load_ckpt, depth2img, save_deployment_model
 from opt import get_opts
 from show_gui import NGPGUI
 # pytorch-lightning
@@ -313,29 +313,7 @@ if __name__ == '__main__':
         trainer.fit(system)
 
     if hparams.deployment:
-        padding = torch.zeros(13, 16)
-        rgb_out = system.model.rgb_net.output_layer.weight
-        print(rgb_out.shape)
-        rgb_out = torch.cat([rgb_out, padding], dim=0)
-        new_dict = {
-            # 'camera_angle_x': meta['camera_angle_x'],
-            # 'K': system.train_dataset.K.numpy(),
-            'poses': system.poses.numpy(),
-            'model.density_bitfield': system.model.density_bitfield.numpy(),
-            'model.hash_encoder.params': system.model.pos_encoder.hash_table.detach().numpy(),
-            'model.per_level_scale': system.model.per_level_scale.numpy()[0],
-            'model.xyz_encoder.params': 
-                torch.cat(
-                    [system.model.xyz_encoder.hidden_layers[0].weight.detach().reshape(-1),
-                    system.model.xyz_encoder.output_layer.weight.detach().reshape(-1)]
-                ).numpy(),
-            'model.rgb_net.params': 
-                torch.cat(
-                    [system.model.rgb_net.hidden_layers[0].weight.detach().reshape(-1),
-                    rgb_out.detach().reshape(-1)]
-                ).numpy(),
-        }
-        np.save('deployment.npy', new_dict)
+        save_deployment_model(system, hparams.deployment_model_path)
 
     if not hparams.no_save_test:  # save video
         imgs = sorted(glob.glob(os.path.join(system.val_dir, 'rgb_*.png')))
