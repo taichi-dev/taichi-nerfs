@@ -17,10 +17,10 @@ from opt import get_opts
 from datasets import dataset_dict
 from datasets.ray_utils import get_rays
 
-from modules.utils import depth2img
 from modules.networks import TaichiNGP
 from modules.distortion import distortion_loss
 from modules.rendering import MAX_SAMPLES, render
+from modules.utils import depth2img, save_deployment_model
 
 from torchmetrics import (
     PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
@@ -84,7 +84,11 @@ def main():
     ).to(device)
 
     # model
-    model = TaichiNGP(hparams, scale=hparams.scale).to(device)
+    model = TaichiNGP(
+        hparams, 
+        scale=hparams.scale,
+        deployment=hparams.deployment,
+    ).to(device)
 
     # load checkpoint if ckpt path is provided
     if hparams.ckpt_path:
@@ -184,6 +188,13 @@ def main():
                 # (stops marching when transmittance drops below 1e-4)
                 f"vr_s={results['vr_samples'] / len(data['rgb']):.1f} | "
             )
+
+    if hparams.deployment:
+        save_deployment_model(
+            model=model, 
+            dataset=train_dataset, 
+            save_dir=hparams.deployment_model_path,
+        )
 
     # check if val_dir exists, otherwise create it
     if not os.path.exists(val_dir):

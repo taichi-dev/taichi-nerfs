@@ -1,8 +1,10 @@
-import taichi as ti
-import torch
-from taichi.math import uvec3
-import numpy as np
+import os
 import cv2
+import torch
+import numpy as np
+
+import taichi as ti
+from taichi.math import uvec3
 
 taichi_block_size = 128
 
@@ -197,24 +199,27 @@ def depth2img(depth):
 
     return depth_img
 
-def save_deployment_model(system, save_dir):
+def save_deployment_model(model, dataset, save_dir):
     padding = torch.zeros(13, 16)
-    rgb_out = system.model.rgb_net.output_layer.weight
+    rgb_out = model.rgb_net.output_layer.weight.detach().cpu()
     rgb_out = torch.cat([rgb_out, padding], dim=0)
     new_dict = {
-        'poses': system.poses.numpy(),
-        'model.density_bitfield': system.model.density_bitfield.numpy(),
-        'model.hash_encoder.params': system.model.pos_encoder.hash_table.detach().numpy(),
-        'model.per_level_scale': system.model.per_level_scale.numpy()[0],
+        'poses': dataset.poses.cpu().numpy(),
+        'model.density_bitfield': model.density_bitfield.cpu().numpy(),
+        'model.hash_encoder.params': model.pos_encoder.hash_table.detach().cpu().numpy(),
+        'model.per_level_scale': model.per_level_scale.cpu().numpy()[0],
         'model.xyz_encoder.params': 
             torch.cat(
-                [system.model.xyz_encoder.hidden_layers[0].weight.detach().reshape(-1),
-                system.model.xyz_encoder.output_layer.weight.detach().reshape(-1)]
+                [model.xyz_encoder.hidden_layers[0].weight.detach().cpu().reshape(-1),
+                model.xyz_encoder.output_layer.weight.detach().cpu().reshape(-1)]
             ).numpy(),
         'model.rgb_net.params': 
             torch.cat(
-                [system.model.rgb_net.hidden_layers[0].weight.detach().reshape(-1),
-                rgb_out.detach().reshape(-1)]
+                [model.rgb_net.hidden_layers[0].weight.detach().cpu().reshape(-1),
+                rgb_out.reshape(-1)]
             ).numpy(),
     }
-    np.save(f'{save_dir}/deployment.npy', new_dict)
+    np.save(
+        os.path.join(f'{save_dir}', 'deployment.npy'), 
+        new_dict
+    )

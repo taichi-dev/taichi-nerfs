@@ -95,6 +95,6 @@ def get_opts(prefix_args=None):
     )
     # use deployment or not
     parser.add_argument('--deployment', action='store_true', default=False)
-    parser.add_argument('--deployment_model_path', type=str, default="")
+    parser.add_argument('--deployment_model_path', type=str, default="./")
 
     return parser.parse_args(prefix_args)

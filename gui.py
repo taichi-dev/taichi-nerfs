@@ -78,11 +78,9 @@ class NGPGUI:
 
     def __init__(self, hparams, K, img_wh, poses, radius=2.5):
         self.hparams = hparams
-        rgb_act = 'Sigmoid'
         self.model = TaichiNGP(
             hparams,
             scale=hparams.scale,
-            rgb_act=rgb_act,
             deployment=hparams.deployment,
         ).cuda()
 
