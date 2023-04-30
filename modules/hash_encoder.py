@@ -4,36 +4,14 @@ import torch
 from taichi.math import uvec3
 from torch.cuda.amp import custom_bwd, custom_fwd
 
-from .utils import (data_type, ti2torch, ti2torch_grad, ti2torch_grad_vec,
-                    ti2torch_vec, torch2ti, torch2ti_grad, torch2ti_grad_vec,
-                    torch2ti_vec, torch_type)
+from .utils import (data_type, torch_type)
 
 half2 = ti.types.vector(n=2, dtype=ti.f16)
-
 
 @ti.kernel
 def random_initialize(data: ti.types.ndarray()):
     for I in ti.grouped(data):
         data[I] = (ti.random() * 2.0 - 1.0) * 1e-4
-
-
-@ti.kernel
-def ti_copy(data1: ti.template(), data2: ti.template()):
-    for I in ti.grouped(data1):
-        data1[I] = data2[I]
-
-
-@ti.kernel
-def ti_copy_array(data1: ti.types.ndarray(), data2: ti.types.ndarray()):
-    for I in ti.grouped(data1):
-        data1[I] = data2[I]
-
-
-@ti.kernel
-def ti_copy_field_array(data1: ti.template(), data2: ti.types.ndarray()):
-    for I in ti.grouped(data1):
-        data1[I] = data2[I]
-
 
 @ti.func
 def fast_hash(pos_grid_local):
@@ -68,13 +46,18 @@ def grid_pos2hash_index(indicator, pos_grid_local, resolution, map_size):
 
 @ti.kernel
 def hash_encode_kernel(
-        xyzs: ti.template(), table: ti.template(),
-        xyzs_embedding: ti.template(), hash_map_indicator: ti.template(),
-        hash_map_sizes_field: ti.template(), offsets: ti.template(), B: ti.i32,
-        per_level_scale: ti.f32):
+        xyzs: ti.types.ndarray(), 
+        table: ti.types.ndarray(),
+        xyzs_embedding: ti.types.ndarray(), 
+        hash_map_indicator: ti.types.ndarray(),
+        hash_map_sizes_field: ti.types.ndarray(), 
+        offsets: ti.types.ndarray(), 
+        B: ti.i32,
+        per_level_scale: ti.f32
+    ):
 
     # get hash table embedding
-    ti.loop_config(block_dim=16)
+    ti.loop_config(block_dim=32)
     for i, level in ti.ndrange(B, 16):
         xyz = ti.Vector([xyzs[i, 0], xyzs[i, 1], xyzs[i, 2]])
 
@@ -165,27 +148,36 @@ def hash_encode_kernel_half2(
 
 class HashEncoder(torch.nn.Module):
 
-    def __init__(self,
-                 b=1.3195079565048218,
-                 max_params: float=2**19,
-                 hash_level: int=16,
-                 base_res: float=16,
-                 batch_size=8192,
-                 data_type=data_type,
-                 half2_opt=False):
+    def __init__(
+        self,
+        b=1.3195079565048218,
+        max_params: float=2**19,
+        hash_level: int=16,
+        base_res: float=16
+    ):
         super(HashEncoder, self).__init__()
 
         self.per_level_scale = b
-        if batch_size < 2048:
-            batch_size = 2048
 
         # per_level_scale = 1.3195079565048218
         print("per_level_scale: ", b)
-        self.offsets = ti.field(ti.i32, shape=(16, ))
-        self.hash_map_sizes_field = ti.field(ti.uint32, shape=(16, ))
-        self.hash_map_indicator = ti.field(ti.i32, shape=(16, ))
+        self.register_buffer(
+            'offsets',
+            torch.zeros(16, dtype=torch.int32),
+            persistent=False
+        )
+        self.register_buffer(
+            'hash_map_sizes',
+            torch.zeros(16, dtype=torch.int32),
+            persistent=False
+        )
+        self.register_buffer(
+            'hash_map_indicator',
+            torch.zeros(16, dtype=torch.int32),
+            persistent=False
+        )
+
         offset_ = 0
-        hash_map_sizes = []
         for i in range(hash_level):
             resolution = int(
                 np.ceil(base_res * np.exp(i * np.log(self.per_level_scale)) -
@@ -196,115 +188,72 @@ class HashEncoder(torch.nn.Module):
                                       (params_in_level + 8 - 1) / 8) * 8
             params_in_level = min(max_params, params_in_level)
             self.offsets[i] = offset_
-            hash_map_sizes.append(params_in_level)
+            self.hash_map_sizes[i] = params_in_level
             self.hash_map_indicator[
                 i] = 1 if resolution**3 <= params_in_level else 0
             offset_ += params_in_level
-        print("offset_: ", offset_)
-        size = np.uint32(np.array(hash_map_sizes))
-        self.hash_map_sizes_field.from_numpy(size)
+        print("total_hash_size: ", offset_)
 
-        self.total_hash_size = offset_ * 2
-        print("total_hash_size: ", self.total_hash_size)
+        self.total_hash_param = offset_ * 2
+        print("total_hash_param: ", self.total_hash_param)
 
-        self.hash_table = torch.nn.Parameter(torch.zeros(self.total_hash_size,
-                                                         dtype=torch_type),
-                                             requires_grad=True)
+        self.hash_table = torch.nn.Parameter(torch.zeros(
+            self.total_hash_param,
+            dtype=torch_type),
+            requires_grad=True
+        )
         random_initialize(self.hash_table)
 
-        if half2_opt:
-            assert self.total_hash_size % 2 == 0
-            self.parameter_fields = half2.field(shape=(self.total_hash_size //
-                                                       2, ),
-                                                needs_grad=True)
-            self.output_fields = half2.field(shape=(batch_size * 1024, 16),
-                                             needs_grad=True)
-
-            self.torch2ti = torch2ti_vec
-            self.ti2torch = ti2torch_vec
-            self.ti2torch_grad = ti2torch_grad_vec
-            self.torch2ti_grad = torch2ti_grad_vec
-
-            self._hash_encode_kernel = hash_encode_kernel_half2
-        else:
-            self.parameter_fields = ti.field(data_type,
-                                             shape=(self.total_hash_size, ),
-                                             needs_grad=True)
-            self.output_fields = ti.field(dtype=data_type,
-                                          shape=(batch_size * 1024, 32),
-                                          needs_grad=True)
-            self.torch2ti = torch2ti
-            self.ti2torch = ti2torch
-            self.ti2torch_grad = ti2torch_grad
-            self.torch2ti_grad = torch2ti_grad
-
-            self._hash_encode_kernel = hash_encode_kernel
-
-        self.input_fields = ti.field(dtype=data_type,
-                                     shape=(batch_size * 1024, 3),
-                                     needs_grad=True)
-
-        self.register_buffer(
-            'hash_grad',
-            torch.zeros(self.total_hash_size, dtype=torch_type),
-            persistent=False
-        )
-        self.register_buffer(
-            'output_embedding',
-            torch.zeros(batch_size * 1024, 32, dtype=torch_type),
-            persistent=False
-        )
+        self._hash_encode_kernel = hash_encode_kernel
 
         class _module_function(torch.autograd.Function):
 
             @staticmethod
-            @custom_fwd(cast_inputs=torch_type)
             def forward(ctx, input_pos, params):
-                output_embedding = self.output_embedding[:input_pos.
-                                                         shape[0]].contiguous(
-                                                         )
-                torch2ti(self.input_fields, input_pos.contiguous())
-                self.torch2ti(self.parameter_fields, params.contiguous())
+
+                output_embedding = torch.empty(
+                    input_pos.shape[0], 32,
+                    dtype=torch_type,
+                    device=input_pos.device, 
+                    requires_grad=True,
+                )
+                ctx.save_for_backward(
+                    input_pos, 
+                    output_embedding, 
+                    params
+                )
 
                 self._hash_encode_kernel(
-                    self.input_fields,
-                    self.parameter_fields,
-                    self.output_fields,
-                    self.hash_map_indicator,
-                    self.hash_map_sizes_field,
-                    self.offsets,
+                    input_pos.contiguous(),
+                    params.contiguous(),
+                    output_embedding.contiguous(),
+                    self.hash_map_indicator.contiguous(),
+                    self.hash_map_sizes.contiguous(),
+                    self.offsets.contiguous(),
                     input_pos.shape[0],
                     self.per_level_scale,
                 )
-                self.ti2torch(self.output_fields, output_embedding)
 
                 return output_embedding
 
             @staticmethod
-            @custom_bwd
             def backward(ctx, doutput):
+                input_pos, output_embedding, params = ctx.saved_tensors
+                output_embedding.grad = doutput
 
-                self.zero_grad()
-
-                self.torch2ti_grad(self.output_fields, doutput.contiguous())
                 self._hash_encode_kernel.grad(
-                    self.input_fields,
-                    self.parameter_fields,
-                    self.output_fields,
-                    self.hash_map_indicator,
-                    self.hash_map_sizes_field,
-                    self.offsets,
-                    doutput.shape[0],
+                    input_pos.contiguous(),
+                    params.contiguous(),
+                    output_embedding.contiguous(),
+                    self.hash_map_indicator.contiguous(),
+                    self.hash_map_sizes.contiguous(),
+                    self.offsets.contiguous(),
+                    input_pos.shape[0],
                     self.per_level_scale,
                 )
-                self.ti2torch_grad(self.parameter_fields,
-                                   self.hash_grad.contiguous())
-                return None, self.hash_grad
+                return None, params.grad
 
         self._module_function = _module_function
-
-    def zero_grad(self):
-        self.parameter_fields.grad.fill(0.)
 
     def forward(self, positions):
         return self._module_function.apply(positions, self.hash_table)

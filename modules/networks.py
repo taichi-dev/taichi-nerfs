@@ -1,7 +1,5 @@
-import math
 from typing import Callable, Optional
 
-# from .custom_functions import TruncExp
 import torch
 import numpy as np
 from torch import nn
@@ -9,15 +7,15 @@ from einops import rearrange
 from kornia.utils.grid import create_meshgrid3d
 from torch.cuda.amp import custom_bwd, custom_fwd
 
-from .hash_encoder_deploy import HashEncoder as HashEncoderDe
-from .hash_encoder import HashEncoder
-from .triplane import TriPlaneEncoder
+from .utils import morton3D, morton3D_invert, packbits
+
 from .ray_march import RayMarcher
 from .rendering import NEAR_DISTANCE
+from .triplane import TriPlaneEncoder
+from .hash_encoder import HashEncoder
+from .volume_train import VolumeRenderer
 from .spherical_harmonics import DirEncoder
-from .utils import morton3D, morton3D_invert, packbits
-from .volume_train import VolumeRenderer as VolumeRendererTaichi
-
+from .hash_encoder_deploy import HashEncoder as HashEncoderDe
 
 class TruncExp(torch.autograd.Function):
 
@@ -104,8 +102,6 @@ class TaichiNGP(nn.Module):
                 self.pos_encoder = HashEncoder(
                     b=self.b,
                     max_params=2**log2_T,
-                    batch_size=args.batch_size,
-                    half2_opt=args.half2_opt
                 )
         elif args.encoder_type == 'triplane':
             if deployment:
@@ -116,9 +112,9 @@ class TaichiNGP(nn.Module):
                 half2_opt=args.half2_opt
             )
 
-        self.dir_encoder = DirEncoder(args.batch_size)
+        self.dir_encoder = DirEncoder()
         
-        self.render_func = VolumeRendererTaichi(args.batch_size)
+        self.render_func = VolumeRenderer()
         
         if deployment:
             xyz_input_dim=16
