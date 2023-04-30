@@ -76,7 +76,7 @@ class OrbitCamera:
 
 class NGPGUI:
 
-    def __init__(self, hparams, K, img_wh, poses, radius=2.5):
+    def __init__(self, hparams, K, img_wh, poses, radius=4.5):
         self.hparams = hparams
         self.model = TaichiNGP(
             hparams,

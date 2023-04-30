@@ -147,7 +147,7 @@ def __render_rays_test(
         )
         # remove converged rays
         alive_indices = alive_indices[alive_indices >= 0]  
-        total_samples += pack_info[:, 0].sum()
+        total_samples += pack_info[:, 1].sum()
 
     results['opacity'] = opacity
     results['depth'] = depth

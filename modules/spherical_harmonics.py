@@ -10,7 +10,11 @@ torch_type = torch.float16
 
 
 @ti.kernel
-def dir_encoder(dirs: ti.template(), embedding: ti.template(), B: ti.i32):
+def dir_encoder(
+    dirs: ti.types.ndarray(), 
+    embedding: ti.types.ndarray(), 
+    B: ti.i32,
+):
     # spherical_harmonics
     ti.loop_config(block_dim=256)
     for i in ti.ndrange(B):
@@ -45,61 +49,40 @@ def dir_encoder(dirs: ti.template(), embedding: ti.template(), B: ti.i32):
 
 class DirEncoder(torch.nn.Module):
 
-    def __init__(self, batch_size=8192):
+    def __init__(self):
         super(DirEncoder, self).__init__()
 
-        self.input_fields = ti.field(dtype=data_type,
-                                     shape=(batch_size * 1024, 3),
-                                     needs_grad=True)
-        self.output_fields = ti.field(dtype=data_type,
-                                      shape=(batch_size * 1024, 16),
-                                      needs_grad=True)
+        self._dir_encoder_kernel = dir_encoder
 
         class _module_function(torch.autograd.Function):
 
             @staticmethod
-            @custom_fwd(cast_inputs=torch_type)
             def forward(ctx, input_dir):
-                # If no output gradient is provided, no need to
-                # automatically materialize it as torch.zeros.
+                output_embedding = torch.empty(
+                    input_dir.shape[0], 16,
+                    dtype=torch_type,
+                    device=input_dir.device,
+                    requires_grad=True,
+                )
+                ctx.save_for_backward(input_dir, output_embedding)
 
-                # ctx.set_materialize_grads(False) # maybe not needed
-                # input_dir = input_dir.to(torch.float16)
-                ctx.input_size = input_dir.shape
-                output_embedding = torch.zeros(input_dir.shape[0],
-                                               16,
-                                               dtype=torch_type,
-                                               device=input_dir.device)
-
-                # ti.sync()
-                torch2ti(self.input_fields, input_dir.contiguous())
-                dir_encoder(self.input_fields, self.output_fields,
-                            input_dir.shape[0])
-                ti2torch(self.output_fields, output_embedding)
-                # ti.sync()
-
+                self._dir_encoder_kernel(
+                    input_dir.contiguous(), 
+                    output_embedding,
+                    input_dir.shape[0]
+                )
                 return output_embedding
 
             @staticmethod
-            @custom_bwd
             def backward(ctx, doutput):
-
-                input_size = ctx.input_size
-                grad = torch.zeros(*input_size,
-                                   device=doutput.device,
-                                   dtype=torch_type)
-                # doutput *= 128
-
-                # zero out the gradient
-                self.input_fields.grad.fill(0)
-                # ti.sync()
-                torch2ti_grad(self.output_fields, doutput.contiguous())
-                dir_encoder.grad(self.input_fields, self.output_fields,
-                                 doutput.shape[0])
-                ti2torch_grad(self.input_fields, grad)
-                # ti.sync()
-
-                return grad
+                input_dir, output_embedding = ctx.saved_tensors
+                output_embedding.grad = doutput
+                self._dir_encoder_kernel.grad(
+                    input_dir.contiguous(), 
+                    output_embedding,
+                    input_dir.shape[0]
+                )
+                return input_dir.grad
 
         self._module_function = _module_function
 

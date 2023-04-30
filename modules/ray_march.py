@@ -123,120 +123,55 @@ def raymarching_train(rays_o: ti.types.ndarray(ndim=2),
                     t += calc_dt(t, exp_step_factor, grid_size, scale)
 
 
-@ti.kernel
-def raymarching_train_backword(segments: ti.types.ndarray(ndim=2),
-                               ts: ti.types.ndarray(ndim=1),
-                               dL_drays_o: ti.types.ndarray(ndim=2),
-                               dL_drays_d: ti.types.ndarray(ndim=2),
-                               dL_dxyzs: ti.types.ndarray(ndim=2),
-                               dL_ddirs: ti.types.ndarray(ndim=2)):
-
-    for s in segments:
-        index = segments[s]
-        dxyz = dL_dxyzs[index]
-        ddir = dL_ddirs[index]
-
-        dL_drays_o[s] = dxyz
-        dL_drays_d[s] = dxyz * ts[index] + ddir
-
 
 class RayMarcher(torch.nn.Module):
 
-    def __init__(self, batch_size=8192):
+    def __init__(self):
         super(RayMarcher, self).__init__()
 
-        self.register_buffer(
-            'rays_a',
-            torch.zeros(batch_size, 3, dtype=torch.int32),
-            persistent=False
+    def forward(
+            self, 
+            rays_o, 
+            rays_d, 
+            hits_t, 
+            density_bitfield, 
+            cascades,
+            scale, 
+            exp_step_factor, 
+            grid_size, 
+            max_samples
+        ):
+        # noise to perturb the first sample of each ray
+        noise = torch.rand_like(rays_o[:, 0])
+        counter = torch.zeros(
+            2,
+            device=rays_o.device,
+            dtype=torch.int32
         )
-        self.register_buffer(
-            'xyzs', 
-            torch.zeros(batch_size * 1024, 3, dtype=torch.float32),
-            persistent=False
-        )
-        self.register_buffer(
-            'dirs', 
-            torch.zeros(batch_size * 1024, 3, dtype=torch.float32),
-            persistent=False
-        )
-        self.register_buffer(
-            'deltas', 
-            torch.zeros(batch_size * 1024, dtype=torch.float32),
-            persistent=False
-        )
-        self.register_buffer(
-            'ts', 
-            torch.zeros(batch_size * 1024, dtype=torch.float32),
-            persistent=False
-        )
+        rays_a = torch.empty()
 
-        # self.register_buffer('dL_drays_o', torch.zeros(batch_size, dtype=torch.float32))
-        # self.register_buffer('dL_drays_d', torch.zeros(batch_size, dtype=torch.float32))
+        raymarching_train(\
+            rays_o, rays_d,
+            hits_t.contiguous(),
+            density_bitfield, noise, counter,
+            rays_a.contiguous(),
+            xyzs.contiguous(),
+            dirs.contiguous(),
+            deltas.contiguous(),
+            ts.contiguous(),
+            cascades, grid_size, scale,
+            exp_step_factor, max_samples)
 
-        class _module_function(torch.autograd.Function):
+        # ti.sync()
 
-            @staticmethod
-            @custom_fwd(cast_inputs=torch.float32)
-            def forward(ctx, rays_o, rays_d, hits_t, density_bitfield,
-                        cascades, scale, exp_step_factor, grid_size,
-                        max_samples):
-                # noise to perturb the first sample of each ray
-                noise = torch.rand_like(rays_o[:, 0])
-                counter = torch.zeros(2,
-                                      device=rays_o.device,
-                                      dtype=torch.int32)
+        total_samples = counter[0]  # total samples for all rays
+        # remove redundant output
+        xyzs = self.xyzs[:total_samples]
+        dirs = self.dirs[:total_samples]
+        deltas = self.deltas[:total_samples]
+        ts = self.ts[:total_samples]
 
-                raymarching_train(\
-                    rays_o, rays_d,
-                    hits_t.contiguous(),
-                    density_bitfield, noise, counter,
-                    self.rays_a.contiguous(),
-                    self.xyzs.contiguous(),
-                    self.dirs.contiguous(),
-                    self.deltas.contiguous(),
-                    self.ts.contiguous(),
-                    cascades, grid_size, scale,
-                    exp_step_factor, max_samples)
-
-                # ti.sync()
-
-                total_samples = counter[0]  # total samples for all rays
-                # remove redundant output
-                xyzs = self.xyzs[:total_samples]
-                dirs = self.dirs[:total_samples]
-                deltas = self.deltas[:total_samples]
-                ts = self.ts[:total_samples]
-
-                return self.rays_a, xyzs, dirs, deltas, ts, total_samples
-
-                # @staticmethod
-                # @custom_bwd
-                # def backward(ctx, dL_drays_a, dL_dxyzs, dL_ddirs, dL_ddeltas, dL_dts,
-                #              dL_dtotal_samples):
-                #     rays_a, ts = ctx.saved_tensors
-                #     # rays_a = rays_a.contiguous()
-                #     ts = ts.contiguous()
-                #     segments = torch.cat([rays_a[:, 1], rays_a[-1:, 1] + rays_a[-1:, 2]])
-                #     dL_drays_o = torch.zeros_like(rays_a[:, 0])
-                #     dL_drays_d = torch.zeros_like(rays_a[:, 0])
-                #     raymarching_train_backword(segments.contiguous(), ts, dL_drays_o,
-                #                                dL_drays_d, dL_dxyzs, dL_ddirs)
-                #     # ti.sync()
-                #     # dL_drays_o = segment_csr(dL_dxyzs, segments)
-                #     # dL_drays_d = \
-                #     #     segment_csr(dL_dxyzs*rearrange(ts, 'n -> n 1')+dL_ddirs, segments)
-
-                #     return dL_drays_o, dL_drays_d, None, None, None, None, None, None, None
-
-        self._module_function = _module_function
-
-    def forward(self, rays_o, rays_d, hits_t, density_bitfield, cascades,
-                scale, exp_step_factor, grid_size, max_samples):
-        return self._module_function.apply(rays_o, rays_d, hits_t,
-                                           density_bitfield, cascades, scale,
-                                           exp_step_factor, grid_size,
-                                           max_samples)
+        return self.rays_a, xyzs, dirs, deltas, ts, total_samples
 
 
 @ti.kernel
