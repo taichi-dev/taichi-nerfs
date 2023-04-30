@@ -2,10 +2,11 @@ import math
 from typing import Callable, Optional
 
 # from .custom_functions import TruncExp
-import numpy as np
 import torch
-from einops import rearrange
+import numpy as np
 from torch import nn
+from einops import rearrange
+from kornia.utils.grid import create_meshgrid3d
 from torch.cuda.amp import custom_bwd, custom_fwd
 
 from .hash_encoder_deploy import HashEncoder as HashEncoderDe
@@ -43,11 +44,10 @@ class TaichiNGP(nn.Module):
             F=2, # number of features per level
             log2_T=19, # maximum number of entries per level 2^19
             N_min=16, # minimum resolution of  hash table
-            rgb_act='Sigmoid',
             deployment=False,
+            max_resolution=2048, # maximum resolution of the hash table
         ):
         super().__init__()
-        self.rgb_act = rgb_act
 
         # scene bounding box
         self.scale = scale
@@ -64,6 +64,20 @@ class TaichiNGP(nn.Module):
             torch.zeros(self.cascades * self.grid_size**3 // 8,
                         dtype=torch.uint8))
 
+        self.register_buffer(
+            'density_grid',
+            torch.zeros(self.cascades, self.grid_size**3),
+        )
+        self.register_buffer(
+            'grid_coords',
+            create_meshgrid3d(
+                self.grid_size, 
+                self.grid_size, 
+                self.grid_size, 
+                False,
+                dtype=torch.int32
+            ).reshape(-1, 3)
+        )
 
         self.ray_marching = RayMarcher(args.batch_size)
 
@@ -103,7 +117,7 @@ class TaichiNGP(nn.Module):
             )
 
         self.dir_encoder = DirEncoder(args.batch_size)
-
+        
         self.render_func = VolumeRendererTaichi(args.batch_size)
         
         if deployment:
@@ -136,25 +150,11 @@ class TaichiNGP(nn.Module):
                 output_activation=nn.Sigmoid()
             )
 
-        if self.rgb_act == 'None':  # rgb_net output is log-radiance
-            for i in range(3):  # independent tonemappers for r,g,b
-                tonemapper_net = \
-                    MLP(
-                        input_dim=1,
-                        output_dim=1,
-                        net_depth=1,
-                        net_width=64,
-                        bias_enabled=False,
-                        output_activation=nn.Sigmoid()
-                    )
-                setattr(self, f'tonemapper_net_{i}', tonemapper_net)
-
     def density(self, x, return_feat=False):
         """
         Inputs:
             x: (N, 3) xyz in [-scale, scale]
             return_feat: whether to return intermediate feature
-
         Outputs:
             sigmas: (N)
         """
@@ -166,35 +166,11 @@ class TaichiNGP(nn.Module):
             return sigmas, h
         return sigmas
 
-    def log_radiance_to_rgb(self, log_radiances, **kwargs):
-        """
-        Convert log-radiance to rgb as the setting in HDR-NeRF.
-        Called only when self.rgb_act == 'None' (with exposure)
-
-        Inputs:
-            log_radiances: (N, 3)
-
-        Outputs:
-            rgbs: (N, 3)
-        """
-        if 'exposure' in kwargs:
-            log_exposure = torch.log(kwargs['exposure'])
-        else:  # unit exposure by default
-            log_exposure = 0
-
-        out = []
-        for i in range(3):
-            inp = log_radiances[:, i:i + 1] + log_exposure
-            out += [getattr(self, f'tonemapper_net_{i}')(inp)]
-        rgbs = torch.cat(out, 1)
-        return rgbs
-
-    def forward(self, x, d, **kwargs):
+    def forward(self, x, d):
         """
         Inputs:
             x: (N, 3) xyz in [-scale, scale]
             d: (N, 3) directions
-
         Outputs:
             sigmas: (N)
             rgbs: (N, 3)
@@ -204,19 +180,12 @@ class TaichiNGP(nn.Module):
         d = self.dir_encoder((d + 1) / 2)
         rgbs = self.rgb_net(torch.cat([d, h], 1))
 
-        if self.rgb_act == 'None':  # rgbs is log-radiance
-            if kwargs.get('output_radiance', False):  # output HDR map
-                rgbs = TruncExp.apply(rgbs)
-            else:  # convert to LDR using tonemapper networks
-                rgbs = self.log_radiance_to_rgb(rgbs, **kwargs)
-
         return sigmas, rgbs
 
     @torch.no_grad()
     def get_all_cells(self):
         """
         Get all cells from the density grid.
-
         Outputs:
             cells: list (of length self.cascades) of indices and coords
                    selected at each cascade
@@ -231,7 +200,6 @@ class TaichiNGP(nn.Module):
         """
         Sample both M uniform and occupied cells (per cascade)
         occupied cells are sample from cells with density > @density_threshold
-
         Outputs:
             cells: list (of length self.cascades) of indices and coords
                    selected at each cascade
@@ -262,7 +230,6 @@ class TaichiNGP(nn.Module):
         """
         mark the cells that aren't covered by the cameras with density -1
         only executed once before training starts
-
         Inputs:
             K: (3, 3) camera intrinsics
             poses: (N, 3, 4) camera to world poses

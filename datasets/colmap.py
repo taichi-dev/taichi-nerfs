@@ -14,13 +14,13 @@ from .ray_utils import center_poses, create_spheric_poses, get_ray_directions
 
 class ColmapDataset(BaseDataset):
 
-    def __init__(self, root_dir, split='train', downsample=1.0, **kwargs):
+    def __init__(self, root_dir, split='train', downsample=1.0, read_meta=True):
         super().__init__(root_dir, split, downsample)
 
         self.read_intrinsics()
 
-        if kwargs.get('read_meta', True):
-            self.read_meta(split, **kwargs)
+        if read_meta:
+            self.read_meta(split)
 
     def read_intrinsics(self):
         # Step 1: read and scale intrinsics (same for all images)
@@ -46,7 +46,7 @@ class ColmapDataset(BaseDataset):
         self.K = torch.FloatTensor([[fx, 0, cx], [0, fy, cy], [0, 0, 1]])
         self.directions = get_ray_directions(h, w, self.K)
 
-    def read_meta(self, split, **kwargs):
+    def read_meta(self, split):
         # Step 2: correct poses
         # read extrinsics (of successfully reconstructed images)
         imdata = read_images_binary(

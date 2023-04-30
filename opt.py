@@ -64,10 +64,10 @@ def get_opts(prefix_args=None):
                         all_images: uniformly from all pixels of ALL images
                         same_image: uniformly from all pixels of a SAME image
                         ''')
-    parser.add_argument('--num_epochs',
+    parser.add_argument('--max_steps',
                         type=int,
-                        default=30,
-                        help='number of training epochs')
+                        default=20000,
+                        help='number of steps to train')
     parser.add_argument('--lr', type=float, default=1e-2, help='learning rate')
     parser.add_argument(
         '--random_bg',
@@ -76,17 +76,6 @@ def get_opts(prefix_args=None):
         help='''whether to train with random bg color (real scene only)
                         to avoid objects with black color to be predicted as transparent
                         ''')
-
-    # validation options
-    parser.add_argument('--val_only',
-                        action='store_true',
-                        default=False,
-                        help='run only validation (need to provide ckpt_path)')
-    parser.add_argument('--no_save_test',
-                        action='store_true',
-                        default=False,
-                        help='whether to save test image and video')
-
     # misc
     parser.add_argument('--exp_name',
                         type=str,
@@ -104,13 +93,8 @@ def get_opts(prefix_args=None):
         default=False,
         help='whether to show interactive GUI after training is done'
     )
-
-    # performance profile
-    parser.add_argument('--perf', action='store_true', default=False)
-
     # use deployment or not
     parser.add_argument('--deployment', action='store_true', default=False)
-    parser.add_argument('--deployment_model_path', type=str, default="")
-
+    parser.add_argument('--deployment_model_path', type=str, default="./")
 
     return parser.parse_args(prefix_args)
