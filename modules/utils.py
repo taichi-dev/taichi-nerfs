@@ -224,3 +224,25 @@ def depth2img(depth):
                                   cv2.COLORMAP_TURBO)
 
     return depth_img
+
+def save_deployment_model(system, save_dir):
+    padding = torch.zeros(13, 16)
+    rgb_out = system.model.rgb_net.output_layer.weight
+    rgb_out = torch.cat([rgb_out, padding], dim=0)
+    new_dict = {
+        'poses': system.poses.numpy(),
+        'model.density_bitfield': system.model.density_bitfield.numpy(),
+        'model.hash_encoder.params': system.model.pos_encoder.hash_table.detach().numpy(),
+        'model.per_level_scale': system.model.per_level_scale.numpy()[0],
+        'model.xyz_encoder.params': 
+            torch.cat(
+                [system.model.xyz_encoder.hidden_layers[0].weight.detach().reshape(-1),
+                system.model.xyz_encoder.output_layer.weight.detach().reshape(-1)]
+            ).numpy(),
+        'model.rgb_net.params': 
+            torch.cat(
+                [system.model.rgb_net.hidden_layers[0].weight.detach().reshape(-1),
+                rgb_out.detach().reshape(-1)]
+            ).numpy(),
+    }
+    np.save(f'{save_dir}/deployment.npy', new_dict)

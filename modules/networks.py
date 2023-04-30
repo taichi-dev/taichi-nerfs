@@ -94,6 +94,9 @@ class TaichiNGP(nn.Module):
                     half2_opt=args.half2_opt
                 )
         elif args.encoder_type == 'triplane':
+            if deployment:
+                raise NotImplementedError
+
             self.pos_encoder = TriPlaneEncoder(
                 args.batch_size,
                 half2_opt=args.half2_opt
@@ -102,45 +105,36 @@ class TaichiNGP(nn.Module):
         self.dir_encoder = DirEncoder(args.batch_size)
 
         self.render_func = VolumeRendererTaichi(args.batch_size)
-
+        
         if deployment:
-            self.xyz_encoder = \
-                MLP(
-                    input_dim=16,
-                    output_dim=16,
-                    net_depth=1,
-                    net_width=16,
-                    bias_enabled=False,
-                )
-
-            self.rgb_net = \
-                MLP(
-                    input_dim=32,
-                    output_dim=3,
-                    net_depth=1,
-                    net_width=16,
-                    bias_enabled=False,
-                    output_activation=nn.Sigmoid()
-                )
+            xyz_input_dim=16
+            xyz_net_width=16
+            rgb_net_depth=1
+            rgb_net_width=16
         else:
-            self.xyz_encoder = \
-                MLP(
-                    input_dim=32,
-                    output_dim=16,
-                    net_depth=1,
-                    net_width=64,
-                    bias_enabled=False,
-                )
+            xyz_input_dim=32
+            xyz_net_width=64
+            rgb_net_depth=2
+            rgb_net_width=64
 
-            self.rgb_net = \
-                MLP(
-                    input_dim=32,
-                    output_dim=3,
-                    net_depth=2,
-                    net_width=64,
-                    bias_enabled=False,
-                    output_activation=nn.Sigmoid()
-                )
+        self.xyz_encoder = \
+            MLP(
+                input_dim=xyz_input_dim,
+                output_dim=16,
+                net_depth=1,
+                net_width=xyz_net_width,
+                bias_enabled=False,
+            )
+
+        self.rgb_net = \
+            MLP(
+                input_dim=32,
+                output_dim=3,
+                net_depth=rgb_net_depth,
+                net_width=rgb_net_width,
+                bias_enabled=False,
+                output_activation=nn.Sigmoid()
+            )
 
         if self.rgb_act == 'None':  # rgb_net output is log-radiance
             for i in range(3):  # independent tonemappers for r,g,b
