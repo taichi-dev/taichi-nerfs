@@ -4,35 +4,9 @@ import torch
 from taichi.math import uvec3, ivec3
 from torch.cuda.amp import custom_bwd, custom_fwd
 
-from .utils import (data_type, ti2torch, ti2torch_grad, ti2torch_grad_vec,
-                    ti2torch_vec, torch2ti, torch2ti_grad, torch2ti_grad_vec,
-                    torch2ti_vec, torch_type)
-
-half2 = ti.types.vector(n=2, dtype=ti.f16)
-
-
-@ti.kernel
-def random_initialize(data: ti.types.ndarray()):
-    for I in ti.grouped(data):
-        data[I] = (ti.random() * 2.0 - 1.0) * 1e-4
-
-
-@ti.kernel
-def ti_copy(data1: ti.template(), data2: ti.template()):
-    for I in ti.grouped(data1):
-        data1[I] = data2[I]
-
-
-@ti.kernel
-def ti_copy_array(data1: ti.types.ndarray(), data2: ti.types.ndarray()):
-    for I in ti.grouped(data1):
-        data1[I] = data2[I]
-
-
-@ti.kernel
-def ti_copy_field_array(data1: ti.template(), data2: ti.types.ndarray()):
-    for I in ti.grouped(data1):
-        data1[I] = data2[I]
+from .utils import (
+    data_type, torch_type, random_initialize
+)
 
 tf_vec12 = ti.types.vector(n=12, dtype=data_type)
 tf_vec9 = ti.types.vector(n=9, dtype=data_type)

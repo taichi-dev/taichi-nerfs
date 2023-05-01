@@ -17,7 +17,7 @@ from opt import get_opts
 from datasets import dataset_dict
 from datasets.ray_utils import get_rays
 
-from modules.networks import TaichiNGP
+from modules.networks import NGP
 from modules.distortion import distortion_loss
 from modules.rendering import MAX_SAMPLES, render
 from modules.utils import depth2img, save_deployment_model
@@ -83,12 +83,25 @@ def main():
         data_range=1
     ).to(device)
 
+    if hparams.deployment:
+        model_config = {
+            'scale': hparams.scale,
+            'level': 4,
+            'feature_per_level': 4,
+            'base_res': 32,
+            'max_resolution': 256,
+            'log2_T': 21,
+            'xyz_net_width': 16,
+            'rgb_net_width': 16,
+            'rgb_net_depth': 1,
+        }
+    else:
+        model_config = {
+            'scale': hparams.scale,
+        }
+
     # model
-    model = TaichiNGP(
-        hparams, 
-        scale=hparams.scale,
-        deployment=hparams.deployment,
-    ).to(device)
+    model = NGP(**model_config).to(device)
 
     # load checkpoint if ckpt path is provided
     if hparams.ckpt_path:
@@ -102,7 +115,7 @@ def main():
         train_dataset.img_wh,
     )
 
-    grad_scaler = torch.cuda.amp.GradScaler()
+    grad_scaler = torch.cuda.amp.GradScaler(2**19)
     # optimizer
     try:
         import apex
@@ -120,22 +133,6 @@ def main():
         )
 
     # scheduler
-    # scheduler = torch.optim.lr_scheduler.ChainedScheduler(
-    #     [
-    #         torch.optim.lr_scheduler.LinearLR(
-    #             optimizer, start_factor=0.01, total_iters=100
-    #         ),
-    #         torch.optim.lr_scheduler.MultiStepLR(
-    #             optimizer,
-    #             milestones=[
-    #                 hparams.max_steps // 2,
-    #                 hparams.max_steps * 3 // 4,
-    #                 hparams.max_steps * 9 // 10,
-    #             ],
-    #             gamma=0.33,
-    #         ),
-    #     ]
-    # )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
         hparams.max_steps,
@@ -289,7 +286,13 @@ def main():
             downsample=hparams.downsample,
             read_meta=True,
         )
-        NGPGUI(hparams, dataset.K, dataset.img_wh, dataset.poses).render()
+        NGPGUI(
+            hparams, 
+            model_config, 
+            dataset.K, 
+            dataset.img_wh, 
+            dataset.poses
+        ).render()
 
 if __name__ == '__main__':
     main()

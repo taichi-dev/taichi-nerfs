@@ -7,15 +7,17 @@ from einops import rearrange
 from kornia.utils.grid import create_meshgrid3d
 from torch.cuda.amp import custom_bwd, custom_fwd
 
-from .utils import morton3D, morton3D_invert, packbits
+from .utils import (
+    morton3D, 
+    morton3D_invert, 
+    packbits, 
+)
 
-from .ray_march import raymarching_train
 from .rendering import NEAR_DISTANCE
 from .triplane import TriPlaneEncoder
 from .hash_encoder import HashEncoder
 from .volume_train import VolumeRenderer
 from .spherical_harmonics import DirEncoder
-from .hash_encoder_deploy import HashEncoder as HashEncoderDe
 
 class TruncExp(torch.autograd.Function):
 
@@ -32,18 +34,24 @@ class TruncExp(torch.autograd.Function):
         return dL_dout * torch.exp(x.clamp(-15, 15))
 
 
-class TaichiNGP(nn.Module):
+class NGP(nn.Module):
 
     def __init__(
             self, 
-            args, 
-            scale, 
-            level=16, # number of levels in hash table
-            feature_per_level=2, # number of features per level
-            log2_T=19, # maximum number of entries per level 2^19
-            base_res=16, # minimum resolution of  hash table
-            deployment=False,
-            max_resolution=2048, # maximum resolution of the hash table
+            scale: float=0.5, 
+            # position encoder config
+            position_encoder_type: str='hash', 
+            level: int=16, # number of levels in hash table
+            feature_per_level: int=2, # number of features per level
+            log2_T: int=19, # maximum number of entries per level 2^19
+            base_res: int=16, # minimum resolution of  hash table
+            max_resolution: int=2048, # maximum resolution of the hash table
+            # mlp config
+            xyz_net_width: int=64,
+            xyz_net_depth: int=1,
+            xyz_net_out_dim: int=16,
+            rgb_net_depth: int=2,
+            rgb_net_width: int=64,
         ):
         super().__init__()
 
@@ -59,8 +67,11 @@ class TaichiNGP(nn.Module):
         self.grid_size = 128
         self.register_buffer(
             'density_bitfield',
-            torch.zeros(self.cascades * self.grid_size**3 // 8,
-                        dtype=torch.uint8))
+            torch.zeros(
+                self.cascades * self.grid_size**3 // 8,
+                dtype=torch.uint8
+            )
+        )
 
         self.register_buffer(
             'density_grid',
@@ -77,80 +88,45 @@ class TaichiNGP(nn.Module):
             ).reshape(-1, 3)
         )
 
-        if args.encoder_type == 'hash':
-            if deployment:
-                b=1.587401032447815
-                self.register_buffer('per_level_scale', torch.tensor([b, ]))
-                self.pos_encoder = HashEncoderDe(
-                    b=b,
-                    max_params=2**21,
-                    base_res=32,
-                    hash_level=4,
-                    feature_per_level=4,
-                    batch_size=args.batch_size,
-                )
-            else:
-                # constants
-                max_resolution = 2048 # maximum resolution of the hash table
-                b = np.exp(np.log(max_resolution * scale / base_res) / (level - 1)) 
-                print(
-                    f'GridEncoding: '
-                    f'base_res={base_res} '
-                    f'b={b:.5f} '
-                    f'feat_per_level={feature_per_level} '
-                    f'T=2^{log2_T} '
-                    f'level={level}'
-                )
-                self.b = b
-                self.pos_encoder = HashEncoder(
-                    b=self.b,
-                    max_params=2**log2_T,
-                    base_res=base_res,
-                    hash_level=level,
-                    feature_per_level=feature_per_level,
-                )
-        elif args.encoder_type == 'triplane':
-            if deployment:
-                raise NotImplementedError
-
+        if position_encoder_type == 'hash':
+            # constants
+            self.pos_encoder = HashEncoder(
+                max_params=2**log2_T,
+                base_res=base_res,
+                max_res=max_resolution*scale,
+                hash_level=level,
+                feature_per_level=feature_per_level,
+            )
+        elif position_encoder_type == 'triplane':
             self.pos_encoder = TriPlaneEncoder(
                 args.batch_size,
                 half2_opt=args.half2_opt
             )
 
+        self.xyz_encoder = MLP(
+            input_dim=self.pos_encoder.out_dim,
+            output_dim=xyz_net_out_dim,
+            net_depth=xyz_net_depth,
+            net_width=xyz_net_width,
+            bias_enabled=False,
+        )
+
         self.dir_encoder = DirEncoder()
-        
+
+        rgb_input_dim = (
+            self.dir_encoder.out_dim + \
+            self.xyz_encoder.output_dim
+        )
+        self.rgb_net =  MLP(
+            input_dim=rgb_input_dim,
+            output_dim=3,
+            net_depth=rgb_net_depth,
+            net_width=rgb_net_width,
+            bias_enabled=False,
+            output_activation=nn.Sigmoid()
+        )
+
         self.render_func = VolumeRenderer()
-        
-        if deployment:
-            xyz_input_dim=16
-            xyz_net_width=16
-            rgb_net_depth=1
-            rgb_net_width=16
-        else:
-            xyz_input_dim=32
-            xyz_net_width=64
-            rgb_net_depth=2
-            rgb_net_width=64
-
-        self.xyz_encoder = \
-            MLP(
-                input_dim=xyz_input_dim,
-                output_dim=16,
-                net_depth=1,
-                net_width=xyz_net_width,
-                bias_enabled=False,
-            )
-
-        self.rgb_net = \
-            MLP(
-                input_dim=32,
-                output_dim=3,
-                net_depth=rgb_net_depth,
-                net_width=rgb_net_width,
-                bias_enabled=False,
-                output_activation=nn.Sigmoid()
-            )
 
     def density(self, x, return_feat=False):
         """
