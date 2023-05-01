@@ -20,3 +20,6 @@ data/*.MOV
 data/*.mp4
 data/colmap_text
 data/transforms.json
+lightning_logs
+*.zip
+external

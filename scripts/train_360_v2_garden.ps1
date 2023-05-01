@@ -1,0 +1,1 @@
+python train.py --root_dir ./360_v2/garden --dataset_name colmap --exp_name garden --downsample 0.25 --no_save_test --num_epochs 20 --scale 16.0 --gui

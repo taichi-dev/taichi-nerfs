@@ -1,0 +1,1 @@
+python train.py --root_dir "./Synthetic_NeRF/Lego" --exp_name Lego --perf --num_epochs 20 --batch_size 8192 --lr 1e-2 --no_save_test --gui  --ckpt_path=./ckpts/nsvf/Lego/epoch=19-v2.ckpt --val_only
