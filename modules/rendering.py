@@ -29,12 +29,10 @@ def render(
     Outputs:
         result: dictionary containing final rgb and depth
     """
-    rays_o = rays_o.contiguous()
-    rays_d = rays_d.contiguous()
 
     hits_t = ray_aabb_intersection(
-        rays_o, 
-        rays_d, 
+        rays_o.contiguous(), 
+        rays_d.contiguous(), 
         model.center, 
         model.half_size, 
     )

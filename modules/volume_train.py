@@ -1,9 +1,7 @@
-import taichi as ti
 import torch
-from torch.cuda.amp import custom_bwd, custom_fwd
+import taichi as ti
 
 from .utils import torch_type
-# torch_type=torch.float16
 
 @ti.kernel
 def volume_rendering_kernel(
@@ -24,6 +22,13 @@ def volume_rendering_kernel(
         ray_idx = rays_a[n, 0]
         start_idx = rays_a[n, 1]
         N_samples = rays_a[n, 2]
+
+        rgb[ray_idx, 0] = 0.0
+        rgb[ray_idx, 1] = 0.0
+        rgb[ray_idx, 2] = 0.0
+        depth[ray_idx] = 0.0
+        opacity[ray_idx] = 0.0
+        total_samples[ray_idx] = 0
 
         T[start_idx] = 1.0
         for sample_ in range(N_samples):
@@ -54,24 +59,31 @@ class VolumeRenderer(torch.nn.Module):
             @staticmethod
             def forward(ctx, sigmas, rgbs, deltas, ts, rays_a, T_threshold):
                 ctx.T_threshold = T_threshold
-                T_recap = torch.zeros_like(sigmas, requires_grad=True)
-                total_samples = torch.zeros_like(rays_a[:, 0])
-                opacity = torch.zeros_like(
-                    rays_a[:, 0], 
-                    dtype=torch_type, 
+                n_rays = rays_a.shape[0]
+                total_samples = torch.empty_like(rays_a[:, 0])
+                opacity = torch.empty(
+                    n_rays, 
+                    dtype=torch_type,
+                    device=rays_a.device, 
                     requires_grad=True
                 )
-                depth = torch.zeros_like(
-                    rays_a[:, 0], 
-                    dtype=torch_type, 
+                depth = torch.empty(
+                    n_rays, 
+                    dtype=torch_type,
+                    device=rays_a.device, 
                     requires_grad=True
                 )
-                rgb = torch.zeros_like(
-                    rays_a, 
-                    dtype=torch_type, 
+                rgb = torch.empty(
+                    n_rays, 3,
+                    dtype=torch_type,
+                    device=rays_a.device, 
                     requires_grad=True
                 )
-                ws = torch.zeros_like(
+                ws = torch.empty_like(
+                    sigmas, 
+                    requires_grad=True
+                )
+                T_recap = torch.zeros_like(
                     sigmas, 
                     requires_grad=True
                 )
@@ -148,7 +160,7 @@ class VolumeRenderer(torch.nn.Module):
 
                 return sigmas.grad, rgbs.grad, None, None, None, None
 
-        self._module_function = _module_function
+        self._module_function = _module_function.apply
 
     def forward(self, sigmas, rgbs, deltas, ts, rays_a, T_threshold):
         return self._module_function.apply(

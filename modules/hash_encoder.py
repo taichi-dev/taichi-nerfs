@@ -1,5 +1,7 @@
 import torch
 import taichi as ti
+from torch.cuda.amp import custom_fwd, custom_bwd
+
 from taichi.math import uvec3
 
 from .utils import (
@@ -10,19 +12,26 @@ from .utils import (
     res_in_level_np,
 )
 
-half2 = ti.types.vector(n=2, dtype=ti.f16)
-
-
 def build_hash_encoder_kernel(
     base_res: float = 16,
     hash_level: int = 16,
     feature_per_level: int = 2,
     begin_fast_hash_level: int = 16,
 ):
-    '''
-    Build hash encoder kernel
-    Construct taichi kernel with some fixed parameters
-    '''
+    """
+    This function constructs a Taichi kernel that encodes
+    3D coordinates into a hash map with multiple levels of resolution.
+
+    Args:
+    base_res (float, optional): Base resolution of the hash map. Default is 16.
+    hash_level (int, optional): Number of levels in the hash map. Default is 16.
+    feature_per_level (int, optional): Number of features per level. Default is 2.
+    begin_fast_hash_level (int, optional): The level at which the fast hash method
+    starts. Default is 16.
+
+    Returns:
+    A Taichi kernel, hash_encoder_kernel.
+    """
 
     # Type
     feat_vec = ti.types.vector(
@@ -34,6 +43,7 @@ def build_hash_encoder_kernel(
     @ti.func
     def fast_hash(pos_grid_local):
         result = ti.uint32(0)
+        # tiny-cuda-nn may use different primes
         # primes = uvec3(ti.uint32(1), ti.uint32(1958374283), ti.uint32(2654435761))
         primes = uvec3(ti.uint32(1), ti.uint32(2654435761), ti.uint32(805459861))
         for i in ti.static(range(3)):
@@ -155,11 +165,6 @@ class HashEncoder(torch.nn.Module):
             torch.zeros(16, dtype=torch.int32),
             persistent=False
         )
-        self.register_buffer(
-            'hash_map_indicator',
-            torch.zeros(16, dtype=torch.int32),
-            persistent=False
-        )
 
         offset = 0
         begin_fast_hash_level = hash_level
@@ -206,9 +211,10 @@ class HashEncoder(torch.nn.Module):
             begin_fast_hash_level=self.begin_fast_hash_level,
         )
 
+        # TODO: use a method to build the autograd function
         class _module_function(torch.autograd.Function):
-
             @staticmethod
+            @custom_fwd(cast_inputs=torch_type)
             def forward(ctx, input_pos, params):
 
                 output_embedding = torch.empty(
@@ -236,6 +242,7 @@ class HashEncoder(torch.nn.Module):
                 return output_embedding
 
             @staticmethod
+            @custom_bwd
             def backward(ctx, doutput):
                 input_pos, output_embedding, params = ctx.saved_tensors
                 output_embedding.grad = doutput
@@ -251,7 +258,8 @@ class HashEncoder(torch.nn.Module):
                 )
                 return None, params.grad
 
-        self._module_function = _module_function
-
+        self._module_function = _module_function.apply
+        
     def forward(self, positions):
-        return self._module_function.apply(positions, self.hash_table)
+        return self._module_function(positions, self.hash_table)
+    

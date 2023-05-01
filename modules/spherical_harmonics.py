@@ -2,12 +2,8 @@ import taichi as ti
 import torch
 from torch.cuda.amp import custom_bwd, custom_fwd
 
-from .utils import torch2ti  # data_type, torch_type
-from .utils import ti2torch, ti2torch_grad, torch2ti_grad
-
 data_type = ti.f16
 torch_type = torch.float16
-
 
 @ti.kernel
 def dir_encoder(
@@ -16,7 +12,7 @@ def dir_encoder(
     B: ti.i32,
 ):
     # spherical_harmonics
-    ti.loop_config(block_dim=256)
+    ti.loop_config(block_dim=512)
     for i in ti.ndrange(B):
         x = dirs[i, 0]
         y = dirs[i, 1]
@@ -84,7 +80,7 @@ class DirEncoder(torch.nn.Module):
                 )
                 return input_dir.grad
 
-        self._module_function = _module_function
+        self._module_function = _module_function.apply
 
     def forward(self, dirs):
         return self._module_function.apply(dirs)
