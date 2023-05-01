@@ -38,10 +38,10 @@ class TaichiNGP(nn.Module):
             self, 
             args, 
             scale, 
-            L=16, # number of levels in hash table
-            F=2, # number of features per level
+            level=16, # number of levels in hash table
+            feature_per_level=2, # number of features per level
             log2_T=19, # maximum number of entries per level 2^19
-            N_min=16, # minimum resolution of  hash table
+            base_res=16, # minimum resolution of  hash table
             deployment=False,
             max_resolution=2048, # maximum resolution of the hash table
         ):
@@ -92,14 +92,22 @@ class TaichiNGP(nn.Module):
             else:
                 # constants
                 max_resolution = 2048 # maximum resolution of the hash table
-                b = np.exp(np.log(max_resolution * scale / N_min) / (L - 1)) 
-                print(f'GridEncoding: Nmin={N_min} b={b:.5f} F={F} T=2^{log2_T} L={L}')
+                b = np.exp(np.log(max_resolution * scale / base_res) / (level - 1)) 
+                print(
+                    f'GridEncoding: '
+                    f'base_res={base_res} '
+                    f'b={b:.5f} '
+                    f'feat_per_level={feature_per_level} '
+                    f'T=2^{log2_T} '
+                    f'level={level}'
+                )
                 self.b = b
-                # self.b = self.hash_encoder.native_tcnn_module.hyperparams(
-                # )['per_level_scale']
                 self.pos_encoder = HashEncoder(
                     b=self.b,
                     max_params=2**log2_T,
+                    base_res=base_res,
+                    hash_level=level,
+                    feature_per_level=feature_per_level,
                 )
         elif args.encoder_type == 'triplane':
             if deployment:

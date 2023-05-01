@@ -26,7 +26,7 @@ def raymarching_train_kernel(
     exp_step_factor: float,
     max_samples: float,
 ):
-    # ti.loop_config(block_dim=256)
+    ti.loop_config(block_dim=128)
     for r in noise:
         ray_o = vec3(rays_o[r, 0], rays_o[r, 1], rays_o[r, 2])
         ray_d = vec3(rays_d[r, 0], rays_d[r, 1], rays_d[r, 2])
@@ -170,14 +170,17 @@ def raymarching_train(
     )
 
     raymarching_train_kernel(
-        rays_o, rays_d,
+        rays_o.contiguous(), 
+        rays_d.contiguous(),
         hits_t.contiguous(),
-        density_bitfield, noise, counter,
-        rays_a.contiguous(),
-        xyzs.contiguous(),
-        dirs.contiguous(),
-        deltas.contiguous(),
-        ts.contiguous(),
+        density_bitfield, 
+        noise, 
+        counter,
+        rays_a,
+        xyzs,
+        dirs,
+        deltas,
+        ts,
         cascades, grid_size, scale,
         exp_step_factor, max_samples
     )
@@ -307,10 +310,10 @@ def raymarching_test(
     )
 
     raymarching_test_kernel(
-        rays_o, 
-        rays_d, 
-        hits_t, 
-        alive_indices,
+        rays_o.contiguous(), 
+        rays_d.contiguous(), 
+        hits_t.contiguous(), 
+        alive_indices.contiguous(),
         density_bitfield, 
         cascades, 
         grid_size, 

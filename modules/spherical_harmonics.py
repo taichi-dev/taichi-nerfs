@@ -83,4 +83,4 @@ class DirEncoder(torch.nn.Module):
         self._module_function = _module_function.apply
 
     def forward(self, dirs):
-        return self._module_function.apply(dirs)
+        return self._module_function(dirs)

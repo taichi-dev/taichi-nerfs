@@ -7,12 +7,13 @@ from .utils import NEAR_DISTANCE
 
 @ti.kernel
 def ray_aabb_intersect(
-        hits_t: ti.types.ndarray(ndim=2),
-        rays_o: ti.types.ndarray(ndim=2),
-        rays_d: ti.types.ndarray(ndim=2),
-        centers: ti.types.ndarray(ndim=2),
-        half_sizes: ti.types.ndarray(ndim=2)):
-
+    hits_t: ti.types.ndarray(),
+    rays_o: ti.types.ndarray(),
+    rays_d: ti.types.ndarray(),
+    centers: ti.types.ndarray(),
+    half_sizes: ti.types.ndarray(),
+):
+    ti.loop_config(block_dim=512)
     for r in ti.ndrange(hits_t.shape[0]):
         ray_o = vec3([rays_o[r, 0], rays_o[r, 1], rays_o[r, 2]])
         ray_d = vec3([rays_d[r, 0], rays_d[r, 1], rays_d[r, 2]])
@@ -45,7 +46,7 @@ def ray_aabb_intersection(rays_o, rays_d, center, half_size):
     )
 
     ray_aabb_intersect(
-        hits_t.contiguous(), 
+        hits_t, 
         rays_o, 
         rays_d, 
         center,

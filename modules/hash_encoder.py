@@ -157,12 +157,12 @@ class HashEncoder(torch.nn.Module):
         print("per_level_scale: ", b)
         self.register_buffer(
             'offsets',
-            torch.zeros(16, dtype=torch.int32),
+            torch.zeros(hash_level, dtype=torch.int32),
             persistent=False
         )
         self.register_buffer(
             'hash_map_sizes',
-            torch.zeros(16, dtype=torch.int32),
+            torch.zeros(hash_level, dtype=torch.int32),
             persistent=False
         )
 

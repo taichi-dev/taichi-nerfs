@@ -18,6 +18,7 @@ def volume_rendering_kernel(
     rgb: ti.types.ndarray(),
     ws: ti.types.ndarray()
 ):
+    ti.loop_config(block_dim=128)
     for n in opacity:
         ray_idx = rays_a[n, 0]
         start_idx = rays_a[n, 1]
@@ -163,6 +164,6 @@ class VolumeRenderer(torch.nn.Module):
         self._module_function = _module_function.apply
 
     def forward(self, sigmas, rgbs, deltas, ts, rays_a, T_threshold):
-        return self._module_function.apply(
+        return self._module_function(
             sigmas, rgbs, deltas, ts, rays_a, T_threshold
         )
