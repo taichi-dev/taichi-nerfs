@@ -120,22 +120,28 @@ def main():
         )
 
     # scheduler
-    scheduler = torch.optim.lr_scheduler.ChainedScheduler(
-        [
-            torch.optim.lr_scheduler.LinearLR(
-                optimizer, start_factor=0.01, total_iters=100
-            ),
-            torch.optim.lr_scheduler.MultiStepLR(
-                optimizer,
-                milestones=[
-                    hparams.max_steps // 2,
-                    hparams.max_steps * 3 // 4,
-                    hparams.max_steps * 9 // 10,
-                ],
-                gamma=0.33,
-            ),
-        ]
+    # scheduler = torch.optim.lr_scheduler.ChainedScheduler(
+    #     [
+    #         torch.optim.lr_scheduler.LinearLR(
+    #             optimizer, start_factor=0.01, total_iters=100
+    #         ),
+    #         torch.optim.lr_scheduler.MultiStepLR(
+    #             optimizer,
+    #             milestones=[
+    #                 hparams.max_steps // 2,
+    #                 hparams.max_steps * 3 // 4,
+    #                 hparams.max_steps * 9 // 10,
+    #             ],
+    #             gamma=0.33,
+    #         ),
+    #     ]
+    # )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer,
+        hparams.max_steps,
+        hparams.lr/30
     )
+
 
     # training loop
     tic = time.time()
