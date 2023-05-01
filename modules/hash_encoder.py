@@ -141,6 +141,7 @@ class HashEncoder(torch.nn.Module):
         self.hash_level = hash_level
         self.max_params = max_params
         self.feature_per_level = feature_per_level
+        self.out_dim = feature_per_level * hash_level
 
         # per_level_scale = 1.3195079565048218
         print("per_level_scale: ", b)
@@ -211,7 +212,7 @@ class HashEncoder(torch.nn.Module):
             def forward(ctx, input_pos, params):
 
                 output_embedding = torch.empty(
-                    input_pos.shape[0], 32,
+                    input_pos.shape[0], self.out_dim,
                     dtype=torch_type,
                     device=input_pos.device, 
                     requires_grad=True,
