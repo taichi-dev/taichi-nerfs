@@ -3,24 +3,29 @@ import torch
 from taichi.math import vec3
 from torch.cuda.amp import custom_fwd
 
-from .utils import __morton3D, calc_dt, mip_from_dt, mip_from_pos
-
+from .utils import (
+    __morton3D, calc_dt, mip_from_dt, mip_from_pos, torch_type
+)
 
 @ti.kernel
-def raymarching_train(rays_o: ti.types.ndarray(ndim=2),
-                      rays_d: ti.types.ndarray(ndim=2),
-                      hits_t: ti.types.ndarray(ndim=2),
-                      density_bitfield: ti.types.ndarray(ndim=1),
-                      noise: ti.types.ndarray(ndim=1),
-                      counter: ti.types.ndarray(ndim=1),
-                      rays_a: ti.types.ndarray(ndim=2),
-                      xyzs: ti.types.ndarray(ndim=2),
-                      dirs: ti.types.ndarray(ndim=2),
-                      deltas: ti.types.ndarray(ndim=1),
-                      ts: ti.types.ndarray(ndim=1), cascades: int,
-                      grid_size: int, scale: float, exp_step_factor: float,
-                      max_samples: float):
-
+def raymarching_train_kernel(
+    rays_o: ti.types.ndarray(),
+    rays_d: ti.types.ndarray(),
+    hits_t: ti.types.ndarray(),
+    density_bitfield: ti.types.ndarray(),
+    noise: ti.types.ndarray(),
+    counter: ti.types.ndarray(),
+    rays_a: ti.types.ndarray(),
+    xyzs: ti.types.ndarray(),
+    dirs: ti.types.ndarray(),
+    deltas: ti.types.ndarray(),
+    ts: ti.types.ndarray(),
+    cascades: int,
+    grid_size: int,
+    scale: float,
+    exp_step_factor: float,
+    max_samples: float,
+):
     # ti.loop_config(block_dim=256)
     for r in noise:
         ray_o = vec3(rays_o[r, 0], rays_o[r, 1], rays_o[r, 2])
@@ -45,18 +50,17 @@ def raymarching_train(rays_o: ti.types.ndarray(ndim=2),
             mip = ti.max(mip_from_pos(xyz, cascades),
                          mip_from_dt(dt, grid_size, cascades))
 
-            # mip_bound = 0.5
             mip_bound = ti.min(ti.pow(2., mip - 1), scale)
             mip_bound_inv = 1 / mip_bound
 
-            nxyz = ti.math.clamp(0.5 * (xyz * mip_bound_inv + 1) * grid_size,
-                                 0.0, grid_size - 1.0)
-            # nxyz = ti.ceil(nxyz)
-
+            nxyz = ti.math.clamp(
+                0.5 * (xyz * mip_bound_inv + 1) * grid_size,
+                xmin=0.0, 
+                xmax=grid_size - 1.0
+            )
+            
             idx = mip * grid_size3 + __morton3D(ti.cast(nxyz, ti.u32))
             occ = density_bitfield[ti.u32(idx // 8)] & (1 << ti.u32(idx % 8))
-            # idx = __morton3D(ti.cast(nxyz, ti.uint32))
-            # occ = density_bitfield[mip, idx//8] & (1 << ti.cast(idx%8, ti.uint32))
 
             if occ:
                 t += dt
@@ -87,18 +91,17 @@ def raymarching_train(rays_o: ti.types.ndarray(ndim=2),
             mip = ti.max(mip_from_pos(xyz, cascades),
                          mip_from_dt(dt, grid_size, cascades))
 
-            # mip_bound = 0.5
             mip_bound = ti.min(ti.pow(2., mip - 1), scale)
             mip_bound_inv = 1 / mip_bound
 
-            nxyz = ti.math.clamp(0.5 * (xyz * mip_bound_inv + 1) * grid_size,
-                                 0.0, grid_size - 1.0)
-            # nxyz = ti.ceil(nxyz)
+            nxyz = ti.math.clamp(
+                0.5 * (xyz * mip_bound_inv + 1) * grid_size,
+                xmin=0.0, 
+                xmax=grid_size - 1.0
+            )
 
             idx = mip * grid_size3 + __morton3D(ti.cast(nxyz, ti.u32))
             occ = density_bitfield[ti.u32(idx // 8)] & (1 << ti.u32(idx % 8))
-            # idx = __morton3D(ti.cast(nxyz, ti.uint32))
-            # occ = density_bitfield[mip, idx//8] & (1 << ti.cast(idx%8, ti.uint32))
 
             if occ:
                 s = start_idx + samples
@@ -113,7 +116,6 @@ def raymarching_train(rays_o: ti.types.ndarray(ndim=2),
                 t += dt
                 samples += 1
             else:
-                # t += dt
                 txyz = (((nxyz + 0.5 + 0.5 * ti.math.sign(ray_d)) *
                          grid_size_inv * 2 - 1) * mip_bound - xyz) * d_inv
 
@@ -123,74 +125,91 @@ def raymarching_train(rays_o: ti.types.ndarray(ndim=2),
                     t += calc_dt(t, exp_step_factor, grid_size, scale)
 
 
+def raymarching_train(
+        rays_o, 
+        rays_d, 
+        hits_t, 
+        density_bitfield, 
+        cascades,
+        scale, 
+        exp_step_factor, 
+        grid_size, 
+        max_samples
+    ):
+    # noise to perturb the first sample of each ray
+    noise = torch.rand_like(rays_o[:, 0])
+    counter = torch.zeros(
+        2,
+        device=rays_o.device,
+        dtype=torch.int32
+    )
+    rays_a = torch.empty(
+        rays_o.shape[0], 3,
+        device=rays_o.device,
+        dtype=torch.int32,
+    )
+    xyzs = torch.empty(
+        rays_o.shape[0] * max_samples, 3,
+        device=rays_o.device,
+        dtype=torch_type,
+    )
+    dirs = torch.empty(
+        rays_o.shape[0] * max_samples, 3,
+        device=rays_o.device,
+        dtype=torch_type,
+    )
+    deltas = torch.empty(
+        rays_o.shape[0] * max_samples,
+        device=rays_o.device,
+        dtype=torch_type,
+    )
+    ts = torch.empty(
+        rays_o.shape[0] * max_samples,
+        device=rays_o.device,
+        dtype=torch_type,
+    )
 
-class RayMarcher(torch.nn.Module):
+    raymarching_train_kernel(
+        rays_o, rays_d,
+        hits_t.contiguous(),
+        density_bitfield, noise, counter,
+        rays_a.contiguous(),
+        xyzs.contiguous(),
+        dirs.contiguous(),
+        deltas.contiguous(),
+        ts.contiguous(),
+        cascades, grid_size, scale,
+        exp_step_factor, max_samples
+    )
 
-    def __init__(self):
-        super(RayMarcher, self).__init__()
+    # total samples for all rays
+    total_samples = counter[0]  
+    # remove redundant output
+    xyzs = xyzs[:total_samples]
+    dirs = dirs[:total_samples]
+    deltas = deltas[:total_samples]
+    ts = ts[:total_samples]
 
-    def forward(
-            self, 
-            rays_o, 
-            rays_d, 
-            hits_t, 
-            density_bitfield, 
-            cascades,
-            scale, 
-            exp_step_factor, 
-            grid_size, 
-            max_samples
-        ):
-        # noise to perturb the first sample of each ray
-        noise = torch.rand_like(rays_o[:, 0])
-        counter = torch.zeros(
-            2,
-            device=rays_o.device,
-            dtype=torch.int32
-        )
-        rays_a = torch.empty()
-
-        raymarching_train(\
-            rays_o, rays_d,
-            hits_t.contiguous(),
-            density_bitfield, noise, counter,
-            rays_a.contiguous(),
-            xyzs.contiguous(),
-            dirs.contiguous(),
-            deltas.contiguous(),
-            ts.contiguous(),
-            cascades, grid_size, scale,
-            exp_step_factor, max_samples)
-
-        # ti.sync()
-
-        total_samples = counter[0]  # total samples for all rays
-        # remove redundant output
-        xyzs = self.xyzs[:total_samples]
-        dirs = self.dirs[:total_samples]
-        deltas = self.deltas[:total_samples]
-        ts = self.ts[:total_samples]
-
-        return self.rays_a, xyzs, dirs, deltas, ts, total_samples
+    return rays_a, xyzs, dirs, deltas, ts, total_samples
 
 
 @ti.kernel
 def raymarching_test_kernel(
-        rays_o: ti.types.ndarray(ndim=2),
-        rays_d: ti.types.ndarray(ndim=2),
-        hits_t: ti.types.ndarray(ndim=2),
-        alive_indices: ti.types.ndarray(ndim=1),
-        density_bitfield: ti.types.ndarray(ndim=1),
-        cascades: int,
-        grid_size: int,
-        scale: float,
-        exp_step_factor: float,
-        max_samples: int,
-        ray_indices: ti.types.ndarray(ndim=1),
-        valid_mask: ti.types.ndarray(ndim=1),
-        deltas: ti.types.ndarray(ndim=1),
-        ts: ti.types.ndarray(ndim=1),
-        samples_counter: ti.types.ndarray(ndim=1),
+    rays_o: ti.types.ndarray(),
+    rays_d: ti.types.ndarray(),
+    hits_t: ti.types.ndarray(),
+    alive_indices: ti.types.ndarray(),
+    density_bitfield: ti.types.ndarray(),
+    cascades: int,
+    grid_size: int,
+    scale: float,
+    exp_step_factor: float,
+    max_samples: int,
+    ray_indices: ti.types.ndarray(),
+    valid_mask: ti.types.ndarray(),
+    deltas: ti.types.ndarray(),
+    ts: ti.types.ndarray(),
+    samples_counter: ti.types.ndarray(),
 ):
 
     for n in alive_indices:
@@ -210,16 +229,19 @@ def raymarching_test_kernel(
         while (0 < t) & (t < t2) & (s < max_samples):
             xyz = ray_o + t * ray_d
             dt = calc_dt(t, exp_step_factor, grid_size, scale)
-            mip = ti.max(mip_from_pos(xyz, cascades),
-                         mip_from_dt(dt, grid_size, cascades))
+            mip = ti.max(
+                mip_from_pos(xyz, cascades),
+                mip_from_dt(dt, grid_size, cascades)
+            )
 
-            # mip_bound = 0.5
             mip_bound = ti.min(ti.pow(2., mip - 1), scale)
             mip_bound_inv = 1 / mip_bound
 
-            nxyz = ti.math.clamp(0.5 * (xyz * mip_bound_inv + 1) * grid_size,
-                                 0.0, grid_size - 1.0)
-            # nxyz = ti.ceil(nxyz)
+            nxyz = ti.math.clamp(
+                0.5 * (xyz * mip_bound_inv + 1) * grid_size,
+                xmin=0.0, 
+                xmax=grid_size - 1.0
+            )
 
             idx = mip * grid_size3 + __morton3D(ti.cast(nxyz, ti.u32))
             occ = density_bitfield[ti.u32(idx // 8)] & (1 << ti.u32(idx % 8))
@@ -258,7 +280,7 @@ def raymarching_test(
 ):
 
     N_rays = alive_indices.size(0)
-    ray_indices = torch.zeros(
+    ray_indices = torch.empty(
         N_rays*max_samples,
         device=rays_o.device,
         dtype=torch.long,
@@ -266,19 +288,19 @@ def raymarching_test(
     valid_mask = torch.zeros(
         N_rays*max_samples,
         device=rays_o.device,
-        dtype=torch.int32,
+        dtype=torch.uint8,
     )
-    deltas = torch.zeros(
+    deltas = torch.empty(
         N_rays*max_samples,
         device=rays_o.device,
         dtype=rays_o.dtype
     )
-    ts = torch.zeros(
+    ts = torch.empty(
         N_rays*max_samples,
         device=rays_o.device,
         dtype=rays_o.dtype
     )
-    samples_counter = torch.zeros(
+    samples_counter = torch.empty(
         N_rays,
         device=rays_o.device,
         dtype=torch.int32

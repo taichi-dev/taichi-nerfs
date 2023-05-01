@@ -1,7 +1,7 @@
 import torch
 from einops import rearrange
 
-from .ray_march import raymarching_test
+from .ray_march import raymarching_test, raymarching_train
 from .intersection import ray_aabb_intersection
 from .volume_render_test import composite_test
 
@@ -190,7 +190,7 @@ def __render_rays_train(
         results['deltas'], 
         results['ts'], 
         results['rm_samples']
-    ) = model.ray_marching(
+    ) = raymarching_train(
         rays_o,
         rays_d,
         hits_t, 

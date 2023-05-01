@@ -9,7 +9,7 @@ from torch.cuda.amp import custom_bwd, custom_fwd
 
 from .utils import morton3D, morton3D_invert, packbits
 
-from .ray_march import RayMarcher
+from .ray_march import raymarching_train
 from .rendering import NEAR_DISTANCE
 from .triplane import TriPlaneEncoder
 from .hash_encoder import HashEncoder
@@ -76,8 +76,6 @@ class TaichiNGP(nn.Module):
                 dtype=torch.int32
             ).reshape(-1, 3)
         )
-
-        self.ray_marching = RayMarcher(args.batch_size)
 
         if args.encoder_type == 'hash':
             if deployment:
