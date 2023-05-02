@@ -86,6 +86,7 @@ def main():
     if hparams.deployment:
         model_config = {
             'scale': hparams.scale,
+            'pos_encoder_type': 'hash',
             'level': 4,
             'feature_per_level': 4,
             'base_res': 32,
@@ -98,6 +99,7 @@ def main():
     else:
         model_config = {
             'scale': hparams.scale,
+            'pos_encoder_type': hparams.encoder_type,
         }
 
     # model

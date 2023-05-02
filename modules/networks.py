@@ -40,12 +40,12 @@ class NGP(nn.Module):
             self, 
             scale: float=0.5, 
             # position encoder config
-            position_encoder_type: str='hash', 
-            level: int=16, # number of levels in hash table
+            pos_encoder_type: str='hash', 
+            levels: int=16, # number of levels in hash table
             feature_per_level: int=2, # number of features per level
             log2_T: int=19, # maximum number of entries per level 2^19
             base_res: int=16, # minimum resolution of  hash table
-            max_resolution: int=2048, # maximum resolution of the hash table
+            max_res: int=2048, # maximum resolution of the hash table
             # mlp config
             xyz_net_width: int=64,
             xyz_net_depth: int=1,
@@ -88,20 +88,23 @@ class NGP(nn.Module):
             ).reshape(-1, 3)
         )
 
-        if position_encoder_type == 'hash':
-            # constants
+        if pos_encoder_type == 'hash':
             self.pos_encoder = HashEncoder(
                 max_params=2**log2_T,
                 base_res=base_res,
-                max_res=max_resolution*scale,
-                hash_level=level,
+                max_res=int(max_res*scale),
+                levels=levels,
                 feature_per_level=feature_per_level,
             )
-        elif position_encoder_type == 'triplane':
+        elif pos_encoder_type == 'triplane':
             self.pos_encoder = TriPlaneEncoder(
-                args.batch_size,
-                half2_opt=args.half2_opt
+                base_res=base_res,
+                max_res=int(max_res*scale),
+                levels=levels,
+                feature_per_level=feature_per_level,
             )
+        else:
+            raise NotImplementedError
 
         self.xyz_encoder = MLP(
             input_dim=self.pos_encoder.out_dim,

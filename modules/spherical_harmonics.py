@@ -77,13 +77,12 @@ class DirEncoder(torch.nn.Module):
                     device=input_dir.device,
                     requires_grad=True,
                 )
-                ctx.save_for_backward(input_dir, output_embedding)
-
                 self._dir_encoder_kernel(
                     input_dir.contiguous(), 
                     output_embedding,
                     input_dir.shape[0]
                 )
+                ctx.save_for_backward(input_dir, output_embedding)
                 return output_embedding
 
             @staticmethod
