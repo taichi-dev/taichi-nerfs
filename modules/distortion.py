@@ -1,6 +1,11 @@
 import torch
 import taichi as ti
 
+# TODO: implement a more efficient version
+# of the distortion loss, by implementing a 
+# prefix sum or scan kernel using shared
+# memory.
+
 def distortion_loss(results):
     return DistortionLoss.apply(
         results['ws'], results['deltas'],

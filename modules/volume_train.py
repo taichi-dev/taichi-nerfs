@@ -59,7 +59,15 @@ class VolumeRenderer(torch.nn.Module):
         class _module_function(torch.autograd.Function):
 
             @staticmethod
-            def forward(ctx, sigmas, rgbs, deltas, ts, rays_a, T_threshold):
+            def forward(
+                    ctx, 
+                    sigmas, 
+                    rgbs, 
+                    deltas, 
+                    ts, 
+                    rays_a, 
+                    T_threshold
+                ):
                 ctx.T_threshold = T_threshold
                 n_rays = rays_a.shape[0]
                 total_samples = torch.empty_like(rays_a[:, 0])
@@ -121,8 +129,13 @@ class VolumeRenderer(torch.nn.Module):
                 return total_samples.sum(), opacity, depth, rgb, ws
 
             @staticmethod
-            def backward(ctx, dL_dtotal_samples, dL_dopacity, dL_ddepth,
-                         dL_drgb, dL_dws):
+            def backward(
+                    ctx, 
+                    dL_dtotal_samples, 
+                    dL_dopacity, 
+                    dL_ddepth,
+                    dL_drgb, dL_dws
+                ):
 
                 # get the saved tensors
                 T_threshold = ctx.T_threshold
@@ -164,7 +177,15 @@ class VolumeRenderer(torch.nn.Module):
 
         self._module_function = _module_function.apply
 
-    def forward(self, sigmas, rgbs, deltas, ts, rays_a, T_threshold):
+    def forward(
+            self, 
+            sigmas, 
+            rgbs, 
+            deltas, 
+            ts, 
+            rays_a, 
+            T_threshold
+        ):
         return self._module_function(
             sigmas, rgbs, deltas, ts, rays_a, T_threshold
         )

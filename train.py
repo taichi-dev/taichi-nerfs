@@ -115,6 +115,8 @@ def main():
         train_dataset.img_wh,
     )
 
+    # use large scaler, the default scaler is 2**16 
+    # TODO: investigate why the gradient is small
     grad_scaler = torch.cuda.amp.GradScaler(2**19)
     # optimizer
     try:

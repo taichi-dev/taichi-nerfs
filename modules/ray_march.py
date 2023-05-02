@@ -1,7 +1,6 @@
 import taichi as ti
 import torch
 from taichi.math import vec3
-from torch.cuda.amp import custom_fwd
 
 from .utils import (
     __morton3D, calc_dt, mip_from_dt, mip_from_pos, torch_type

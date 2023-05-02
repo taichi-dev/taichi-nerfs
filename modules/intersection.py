@@ -34,13 +34,15 @@ def ray_aabb_intersect(
         if t2 > 0.0:
             hits_t[r, 0] = ti.max(t1, NEAR_DISTANCE)
             hits_t[r, 1] = t2
+        else:
+            hits_t[r, 0] = -1.0
+            hits_t[r, 1] = -1.0
 
 
 def ray_aabb_intersection(rays_o, rays_d, center, half_size):
     
-    hits_t = torch.full(
-        (rays_o.size(0), 2),
-        -1, 
+    hits_t = torch.empty(
+        rays_o.size(0), 2,
         device=rays_o.device, 
         dtype=rays_o.dtype
     )
