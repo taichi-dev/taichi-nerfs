@@ -1,6 +1,5 @@
 import torch
 import taichi as ti
-from torch.cuda.amp import custom_fwd, custom_bwd
 
 from .utils import torch_type
 

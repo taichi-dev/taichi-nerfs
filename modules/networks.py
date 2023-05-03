@@ -98,10 +98,10 @@ class NGP(nn.Module):
             )
         elif pos_encoder_type == 'triplane':
             self.pos_encoder = TriPlaneEncoder(
-                base_res=base_res,
-                max_res=int(max_res*scale),
-                levels=levels,
-                feature_per_level=feature_per_level,
+                base_res=16,
+                max_res=4096,
+                levels=8,
+                feature_per_level=4,
             )
         else:
             raise NotImplementedError
