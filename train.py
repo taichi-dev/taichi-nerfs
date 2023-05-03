@@ -58,7 +58,6 @@ def main():
     update_interval = 16
 
     # datasets
-    target_sample_batch_size = 1 << 18
     dataset = dataset_dict[hparams.dataset_name]
     train_dataset = dataset(
         root_dir=hparams.root_dir,
@@ -101,6 +100,7 @@ def main():
         model_config = {
             'scale': hparams.scale,
             'pos_encoder_type': hparams.encoder_type,
+            'max_res': 1024 if hparams.scale == 0.5 else 4096,
         }
 
     # model
@@ -147,7 +147,6 @@ def main():
 
     # training loop
     tic = time.time()
-    print("target_sample_batch_size :", target_sample_batch_size)
     for step in range(hparams.max_steps+1):
         model.train()
 
@@ -173,14 +172,7 @@ def main():
                 exp_step_factor=exp_step_factor,
             )
 
-            if target_sample_batch_size > 0:
-                # dynamic batch size for rays to keep sample batch size constant.
-                num_rays = len(rays_o)
-                train_dataset.batch_size = int(
-                    num_rays * (target_sample_batch_size / float(results['rm_samples']))
-                )
-
-            loss = F.huber_loss(results['rgb'], data['rgb'])
+            loss = F.mse_loss(results['rgb'], data['rgb'])
             if hparams.distortion_loss_w > 0:
                 loss += hparams.distortion_loss_w * distortion_loss(results).mean()
 

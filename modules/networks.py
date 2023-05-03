@@ -92,14 +92,14 @@ class NGP(nn.Module):
             self.pos_encoder = HashEncoder(
                 max_params=2**log2_T,
                 base_res=base_res,
-                max_res=int(max_res*scale),
+                max_res=max_res,
                 levels=levels,
                 feature_per_level=feature_per_level,
             )
         elif pos_encoder_type == 'triplane':
             self.pos_encoder = TriPlaneEncoder(
                 base_res=16,
-                max_res=4096,
+                max_res=max_res,
                 levels=8,
                 feature_per_level=4,
             )
