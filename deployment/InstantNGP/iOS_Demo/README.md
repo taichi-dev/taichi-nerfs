@@ -1,5 +1,17 @@
 # Taichi NGP iOS Demo
 
+<p align="center">
+<img src="../../../assets/NeRF_on_iPad.gif" width="200"> 
+<img src="../../../assets/NeRF_iPhone14_Pro_Max.gif" width="200">
+</p>
+
+<p align="center">
+<img src="../../../assets/Chair_iPad.gif" width="200"> 
+<img src="../../../assets/Ficus_iPad.gif" width="200">
+<img src="../../../assets/Lego_iPad.gif" width="200">
+<img src="../../../assets/Mic_iPad.gif" width="200">
+</p>
+
 ## Prerequisites 
 1. Machine running MacOS 
 2. Device running iOS with Metal support (typically iPhones or iPads)
