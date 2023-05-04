@@ -32,7 +32,7 @@ sh scripts/compile_and_run_nerf.sh
   * You'll notice a `out.png` generated in the same folder, which contains the **inferenced image** with current **camera position**.
 
 ## Deploy with modified taichi_ngp.py
-Sometimes you may want to modify the Taichi NGP model in `taichi_ngp.py` for fun. Once done editing `taichi_ngp.py`, you will need to regenerate the AOT files (`InstantNGP/taichi_ngp/compiled`). 
+Sometimes you may want to modify the Taichi NGP model in `taichi_ngp.py` for fun. Once done editing `taichi_ngp.py`, you will need to regenerate the AOT files. 
 
 For example, let's say we want to adjust the camera resolution. 
 
