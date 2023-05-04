@@ -173,12 +173,6 @@ def dir_encode_func(dir_):
     return input_val
 
 @ti.kernel
-def init_from_arr(data: ti.types.ndarray(), f: ti.template()):
-    for I in ti.grouped(f):
-        f[I] = data[I]
-
-
-@ti.kernel
 def rotate_scale(NGP_pose: ti.types.ndarray(dtype=ti.types.matrix(
     3, 4, dtype=data_type),
                                             ndim=0), angle_x: ti.f32,
