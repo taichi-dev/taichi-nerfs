@@ -405,7 +405,7 @@ def hash_encode(
             local_feature_3 = init_val0[0]
 
             scale = NGP_base_res * ti.exp(
-                level * ti.log(NGP_per_level_scales)) - 1.0
+                level * NGP_per_level_scales) - 1.0
             resolution = ti.cast(ti.ceil(scale), ti.uint32) + 1
 
             pos = xyz * scale + 0.5
@@ -579,7 +579,7 @@ def initialize():
     NGP_max_params = 2**log2_T
     for i in range(NGP_level):
         resolution = int(
-            np.ceil(NGP_base_res * np.exp(i * np.log(NGP_per_level_scales)) -
+            np.ceil(NGP_base_res * np.exp(i * NGP_per_level_scales) -
                     1.0)) + 1
         print(f"level: {i}, res: {resolution}")
         params_in_level = resolution**3
