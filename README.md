@@ -58,7 +58,9 @@ Place your video in `data` folder and pass the video path to the script. There a
 ./scripts/train_from_video.sh -v {your_video_name} -s {scale} -f {video_fps}
 ```
 
-## [Preview] Mobile Deployment
+## Mobile Deployment
+
+[Taichi NGP Deployment](deployment/InstantNGP)
 
 Using [Taichi AOT](https://docs.taichi-lang.org/docs/tutorial), you can easily deploy a NeRF rendering pipeline on any mobile devices!
 

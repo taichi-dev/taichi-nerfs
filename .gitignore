@@ -20,3 +20,9 @@ data/*.MOV
 data/*.mp4
 data/colmap_text
 data/transforms.json
+
+deployment/InstantNGP/taichi_ngp/npy_models
+deployment/InstantNGP/Android_Demo/build-*
+deployment/InstantNGP/iOS_Demo/c_api
+
+xcuserdata
