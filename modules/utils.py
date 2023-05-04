@@ -1,8 +1,10 @@
-import taichi as ti
-import torch
-from taichi.math import uvec3
-import numpy as np
+import os
 import cv2
+import torch
+import numpy as np
+
+import taichi as ti
+from taichi.math import uvec3
 
 taichi_block_size = 128
 
@@ -190,37 +192,34 @@ def torch2ti_grad_vec(field: ti.template(), grad: ti.types.ndarray()):
         field.grad[i, j][1] = grad[i, j * 2 + 1]
 
 
-def extract_model_state_dict(ckpt_path,
-                             model_name='model',
-                             prefixes_to_ignore=[]):
-    checkpoint = torch.load(ckpt_path, map_location='cpu')
-    checkpoint_ = {}
-    if 'state_dict' in checkpoint:  # if it's a pytorch-lightning checkpoint
-        checkpoint = checkpoint['state_dict']
-    for k, v in checkpoint.items():
-        if not k.startswith(model_name):
-            continue
-        k = k[len(model_name) + 1:]
-        for prefix in prefixes_to_ignore:
-            if k.startswith(prefix):
-                break
-        else:
-            checkpoint_[k] = v
-    return checkpoint_
-
-
-def load_ckpt(model, ckpt_path, model_name='model', prefixes_to_ignore=[]):
-    if not ckpt_path:
-        return
-    model_dict = model.state_dict()
-    checkpoint_ = extract_model_state_dict(ckpt_path, model_name,
-                                           prefixes_to_ignore)
-    model_dict.update(checkpoint_)
-    model.load_state_dict(model_dict)
-
 def depth2img(depth):
     depth = (depth - depth.min()) / (depth.max() - depth.min())
     depth_img = cv2.applyColorMap((depth * 255).astype(np.uint8),
                                   cv2.COLORMAP_TURBO)
 
     return depth_img
+
+def save_deployment_model(model, dataset, save_dir):
+    padding = torch.zeros(13, 16)
+    rgb_out = model.rgb_net.output_layer.weight.detach().cpu()
+    rgb_out = torch.cat([rgb_out, padding], dim=0)
+    new_dict = {
+        'poses': dataset.poses.cpu().numpy(),
+        'model.density_bitfield': model.density_bitfield.cpu().numpy(),
+        'model.hash_encoder.params': model.pos_encoder.hash_table.detach().cpu().numpy(),
+        'model.per_level_scale': model.per_level_scale.cpu().numpy()[0],
+        'model.xyz_encoder.params': 
+            torch.cat(
+                [model.xyz_encoder.hidden_layers[0].weight.detach().cpu().reshape(-1),
+                model.xyz_encoder.output_layer.weight.detach().cpu().reshape(-1)]
+            ).numpy(),
+        'model.rgb_net.params': 
+            torch.cat(
+                [model.rgb_net.hidden_layers[0].weight.detach().cpu().reshape(-1),
+                rgb_out.reshape(-1)]
+            ).numpy(),
+    }
+    np.save(
+        os.path.join(f'{save_dir}', 'deployment.npy'), 
+        new_dict
+    )

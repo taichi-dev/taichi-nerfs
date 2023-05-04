@@ -47,7 +47,6 @@ def get_ray_directions(H,
         return directions, grid
     return directions
 
-
 @torch.cuda.amp.autocast(dtype=torch.float32)
 def get_rays(directions, c2w):
     """

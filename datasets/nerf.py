@@ -12,12 +12,12 @@ from .ray_utils import get_ray_directions
 
 class NeRFDataset(BaseDataset):
 
-    def __init__(self, root_dir, split='train', downsample=1.0, **kwargs):
+    def __init__(self, root_dir, split='train', downsample=1.0, read_meta=True):
         super().__init__(root_dir, split, downsample)
 
         self.read_intrinsics()
 
-        if kwargs.get('read_meta', True):
+        if read_meta:
             self.read_meta(split)
 
     def read_intrinsics(self):
@@ -55,32 +55,10 @@ class NeRFDataset(BaseDataset):
         for frame in tqdm(frames):
             c2w = np.array(frame['transform_matrix'])[:3, :4]
 
-            # determine scale
-            if 'Jrender_Dataset' in self.root_dir:
-                c2w[:, :2] *= -1  # [left up front] to [right down front]
-                folder = self.root_dir.split('/')
-                scene = folder[-1] if folder[-1] != '' else folder[-2]
-                if scene == 'Easyship':
-                    pose_radius_scale = 1.2
-                elif scene == 'Scar':
-                    pose_radius_scale = 1.8
-                elif scene == 'Coffee':
-                    pose_radius_scale = 2.5
-                elif scene == 'Car':
-                    pose_radius_scale = 0.8
-                else:
-                    pose_radius_scale = 1.5
-            else:
-                c2w[:, 1:3] *= -1  # [right up back] to [right down front]
-                pose_radius_scale = 1.5
+            c2w[:, 1:3] *= -1  # [right up back] to [right down front]
+            pose_radius_scale = 1.5
             c2w[:, 3] /= np.linalg.norm(c2w[:, 3]) / pose_radius_scale
 
-            # add shift
-            if 'Jrender_Dataset' in self.root_dir:
-                if scene == 'Coffee':
-                    c2w[1, 3] -= 0.4465
-                elif scene == 'Car':
-                    c2w[0, 3] -= 0.7
             self.poses += [c2w]
 
             try:
