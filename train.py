@@ -29,7 +29,7 @@ from torchmetrics import (
 warnings.filterwarnings("ignore")
 
 def taichi_init(args):
-    taichi_init_args = {"arch": ti.cuda, "device_memory_GB": 4.0}
+    taichi_init_args = {"arch": ti.cuda,}
     if args.half2_opt:
         taichi_init_args["half2_vectorization"] = True
 
