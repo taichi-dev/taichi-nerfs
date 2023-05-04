@@ -140,7 +140,7 @@ def random_normal():
 @ti.func
 def dir_encode_func(dir_):
     input_val = tf_vec32(0.0)
-    d = dir_ / dir_.norm()
+    d = (dir_ / dir_.norm() + 1) / 2
     x = d[0]
     y = d[1]
     z = d[2]
