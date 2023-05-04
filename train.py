@@ -17,7 +17,7 @@ from opt import get_opts
 from datasets import dataset_dict
 from datasets.ray_utils import get_rays
 
-from modules.networks import TaichiNGP
+from modules.networks import NGP
 from modules.distortion import distortion_loss
 from modules.rendering import MAX_SAMPLES, render
 from modules.utils import depth2img, save_deployment_model
@@ -29,7 +29,7 @@ from torchmetrics import (
 warnings.filterwarnings("ignore")
 
 def taichi_init(args):
-    taichi_init_args = {"arch": ti.cuda, "device_memory_GB": 4.0}
+    taichi_init_args = {"arch": ti.cuda,}
     if args.half2_opt:
         taichi_init_args["half2_vectorization"] = True
 
@@ -83,12 +83,28 @@ def main():
         data_range=1
     ).to(device)
 
+    if hparams.deployment:
+        model_config = {
+            'scale': hparams.scale,
+            'pos_encoder_type': 'hash',
+            'level': 4,
+            'feature_per_level': 4,
+            'base_res': 32,
+            'max_resolution': 256,
+            'log2_T': 21,
+            'xyz_net_width': 16,
+            'rgb_net_width': 16,
+            'rgb_net_depth': 1,
+        }
+    else:
+        model_config = {
+            'scale': hparams.scale,
+            'pos_encoder_type': hparams.encoder_type,
+            'max_res': 1024 if hparams.scale == 0.5 else 4096,
+        }
+
     # model
-    model = TaichiNGP(
-        hparams, 
-        scale=hparams.scale,
-        deployment=hparams.deployment,
-    ).to(device)
+    model = NGP(**model_config).to(device)
 
     # load checkpoint if ckpt path is provided
     if hparams.ckpt_path:
@@ -102,7 +118,9 @@ def main():
         train_dataset.img_wh,
     )
 
-    grad_scaler = torch.cuda.amp.GradScaler()
+    # use large scaler, the default scaler is 2**16 
+    # TODO: investigate why the gradient is small
+    grad_scaler = torch.cuda.amp.GradScaler(2**19)
     # optimizer
     try:
         import apex
@@ -120,22 +138,12 @@ def main():
         )
 
     # scheduler
-    scheduler = torch.optim.lr_scheduler.ChainedScheduler(
-        [
-            torch.optim.lr_scheduler.LinearLR(
-                optimizer, start_factor=0.01, total_iters=100
-            ),
-            torch.optim.lr_scheduler.MultiStepLR(
-                optimizer,
-                milestones=[
-                    hparams.max_steps // 2,
-                    hparams.max_steps * 3 // 4,
-                    hparams.max_steps * 9 // 10,
-                ],
-                gamma=0.33,
-            ),
-        ]
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer,
+        hparams.max_steps,
+        hparams.lr/30
     )
+
 
     # training loop
     tic = time.time()
@@ -163,9 +171,10 @@ def main():
                 rays_d,
                 exp_step_factor=exp_step_factor,
             )
+
             loss = F.mse_loss(results['rgb'], data['rgb'])
             if hparams.distortion_loss_w > 0:
-                loss += hparams.distortion_loss_w * distortion_loss(results)
+                loss += hparams.distortion_loss_w * distortion_loss(results).mean()
 
         optimizer.zero_grad()
         grad_scaler.scale(loss).backward()
@@ -182,6 +191,8 @@ def main():
                 f"elapsed_time={elapsed_time:.2f}s | "
                 f"step={step} | psnr={psnr:.2f} | "
                 f"loss={loss:.6f} | "
+                # number of rays
+                f"rays={len(data['rgb'])} | "
                 # ray marching samples per ray (occupied space on the ray)
                 f"rm_s={results['rm_samples'] / len(data['rgb']):.1f} | "
                 # volume rendering samples per ray 
@@ -283,7 +294,13 @@ def main():
             downsample=hparams.downsample,
             read_meta=True,
         )
-        NGPGUI(hparams, dataset.K, dataset.img_wh, dataset.poses).render()
+        NGPGUI(
+            hparams, 
+            model_config, 
+            dataset.K, 
+            dataset.img_wh, 
+            dataset.poses
+        ).render()
 
 if __name__ == '__main__':
     main()

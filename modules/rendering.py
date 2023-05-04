@@ -1,7 +1,7 @@
 import torch
 from einops import rearrange
 
-from .ray_march import raymarching_test
+from .ray_march import raymarching_test, raymarching_train
 from .intersection import ray_aabb_intersection
 from .volume_render_test import composite_test
 
@@ -29,12 +29,10 @@ def render(
     Outputs:
         result: dictionary containing final rgb and depth
     """
-    rays_o = rays_o.contiguous()
-    rays_d = rays_d.contiguous()
 
     hits_t = ray_aabb_intersection(
-        rays_o, 
-        rays_d, 
+        rays_o.contiguous(), 
+        rays_d.contiguous(), 
         model.center, 
         model.half_size, 
     )
@@ -147,7 +145,7 @@ def __render_rays_test(
         )
         # remove converged rays
         alive_indices = alive_indices[alive_indices >= 0]  
-        total_samples += pack_info[:, 0].sum()
+        total_samples += pack_info[:, 1].sum()
 
     results['opacity'] = opacity
     results['depth'] = depth
@@ -190,7 +188,7 @@ def __render_rays_train(
         results['deltas'], 
         results['ts'], 
         results['rm_samples']
-    ) = model.ray_marching(
+    ) = raymarching_train(
         rays_o,
         rays_d,
         hits_t, 

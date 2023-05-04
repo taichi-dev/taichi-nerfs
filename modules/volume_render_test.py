@@ -3,16 +3,16 @@ from taichi.math import vec3
 
 @ti.kernel
 def composite_test(
-           sigmas: ti.types.ndarray(ndim=1),
-             rgbs: ti.types.ndarray(ndim=2),
-           deltas: ti.types.ndarray(ndim=1),
-               ts: ti.types.ndarray(ndim=1),
-        pack_info: ti.types.ndarray(ndim=2),
-    alive_indices: ti.types.ndarray(ndim=1),
+           sigmas: ti.types.ndarray(),
+             rgbs: ti.types.ndarray(),
+           deltas: ti.types.ndarray(),
+               ts: ti.types.ndarray(),
+        pack_info: ti.types.ndarray(),
+    alive_indices: ti.types.ndarray(),
       T_threshold: float,
-          opacity: ti.types.ndarray(ndim=1),
-            depth: ti.types.ndarray(ndim=1),
-              rgb: ti.types.ndarray(ndim=2)
+          opacity: ti.types.ndarray(),
+            depth: ti.types.ndarray(),
+              rgb: ti.types.ndarray()
 ):
     
     ti.loop_config(block_dim=256)

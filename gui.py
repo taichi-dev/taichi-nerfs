@@ -11,7 +11,7 @@ from opt import get_opts
 from datasets import dataset_dict
 from datasets.ray_utils import get_ray_directions, get_rays
 
-from modules.networks import TaichiNGP
+from modules.networks import NGP
 from modules.rendering import render
 from modules.utils import depth2img
 
@@ -76,13 +76,17 @@ class OrbitCamera:
 
 class NGPGUI:
 
-    def __init__(self, hparams, K, img_wh, poses, radius=2.5):
+    def __init__(
+            self, 
+            hparams, 
+            model_config, 
+            K, 
+            img_wh, 
+            poses, 
+            radius=4.5
+        ):
         self.hparams = hparams
-        self.model = TaichiNGP(
-            hparams,
-            scale=hparams.scale,
-            deployment=hparams.deployment,
-        ).cuda()
+        self.model = NGP(**model_config).cuda()
 
         print(f"loading ckpt from: {hparams.ckpt_path}")
         state_dict = torch.load(hparams.ckpt_path)

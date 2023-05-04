@@ -6,8 +6,6 @@ import numpy as np
 import taichi as ti
 from taichi.math import uvec3
 
-taichi_block_size = 128
-
 data_type = ti.f32
 torch_type = torch.float32
 
@@ -17,6 +15,36 @@ SQRT3 = 1.7320508075688772
 SQRT3_MAX_SAMPLES = SQRT3 / 1024
 SQRT3_2 = 1.7320508075688772 * 2
 
+
+def res_in_level_np(
+        level_i, 
+        base_res, 
+        log_per_level_scale
+    ):
+    result = np.ceil(
+        float(base_res) * np.exp(
+            float(level_i) * log_per_level_scale
+        ) - 1.0
+    )
+    return float(result + 1)
+
+def scale_in_level_np(
+        base_res, 
+        max_res,
+        levels,
+    ):
+    result = np.log(
+        float(max_res) / float(base_res)
+    ) / float(levels - 1)
+    return result
+
+def align_to(x, y):
+    return int((x+y-1)/y)*y
+
+@ti.kernel
+def random_initialize(data: ti.types.ndarray()):
+    for I in ti.grouped(data):
+        data[I] = (ti.random() * 2.0 - 1.0) * 1e-4
 
 @ti.func
 def scalbn(x, exponent):
@@ -207,7 +235,7 @@ def save_deployment_model(model, dataset, save_dir):
         'poses': dataset.poses.cpu().numpy(),
         'model.density_bitfield': model.density_bitfield.cpu().numpy(),
         'model.hash_encoder.params': model.pos_encoder.hash_table.detach().cpu().numpy(),
-        'model.per_level_scale': model.per_level_scale.cpu().numpy()[0],
+        'model.per_level_scale': model.pos_encoder.log_b,
         'model.xyz_encoder.params': 
             torch.cat(
                 [model.xyz_encoder.hidden_layers[0].weight.detach().cpu().reshape(-1),
