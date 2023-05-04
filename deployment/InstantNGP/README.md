@@ -13,6 +13,8 @@ With Taichi AOT, you can deploy Taichi kernels to various platforms: iOS, Androi
 <img src="../../assets/NeRF_iPhone14_Pro_Max.gif" width="200">
 </p>
 
+Special thanks to [@Linyou](https://github.com/Linyou) for his major contributions to this project!
+
 ## iOS Demo
 [Checkout our iOS Demo](iOS_Demo)
 
