@@ -8,10 +8,20 @@ With Taichi AOT, you can deploy Taichi kernels to various platforms: iOS, Androi
 > This Demo pre-trained a NGP model purely written in Taichi: [TODO: training part]
 > Please switch to this pipeline if you'd like to re-train a deployable model on your own.
 
-[TODO: Demos]
+<p align="center">
+<img src="../../assets/NeRF_on_iPad.gif" width="200"> 
+<img src="../../assets/NeRF_iPhone14_Pro_Max.gif" width="200">
+</p>
 
 ## iOS Demo
 [Checkout our iOS Demo](iOS_Demo)
+
+<p align="center">
+<img src="../../assets/Chair_iPad.gif" width="200"> 
+<img src="../../assets/Ficus_iPad.gif" width="200">
+<img src="../../assets/Lego_iPad.gif" width="200">
+<img src="../../assets/Mic_iPad.gif" width="200">
+</p>
 
 
 ## Android Demo
