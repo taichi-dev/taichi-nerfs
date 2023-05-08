@@ -90,7 +90,7 @@ def main():
             'levels': 4,
             'feature_per_level': 4,
             'base_res': 32,
-            'max_res': 256,
+            'max_res': 128,
             'log2_T': 21,
             'xyz_net_width': 16,
             'rgb_net_width': 16,
