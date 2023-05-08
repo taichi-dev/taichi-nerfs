@@ -3,10 +3,13 @@ import os
 import shutil
 from typing import Tuple
 
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../../"))
+from modules.intersection import ray_aabb_intersect
+
 import numpy as np
 import taichi as ti
 from matplotlib import pyplot as plt
-from taichi.math import uvec3
 from kernels import args, np_type, data_type,\
                     rotate_scale, reset,\
                     ray_intersect, raymarching_test_kernel,\
@@ -15,8 +18,10 @@ from kernels import args, np_type, data_type,\
                     re_order, fill_ndarray,\
                     init_current_index, rotate_scale,\
                     initialize, load_deployment_model,\
-                    cascades, grid_size,\
+                    cascades, grid_size, scale, \
                     NGP_res, NGP_N_rays, NGP_min_samples
+
+from new_kernels import get_rays
 
 ti.init(arch=ti.vulkan,
         enable_fallback=False,
@@ -115,18 +120,19 @@ def update_model_weights(model):
     NGP_pose.from_numpy(pose)
     
     NGP_directions.from_numpy(model['model.directions'])
-    
+
+
 
 def run_inference(max_samples,
                   T_threshold,
                   dist_to_focus=0.8,
                   len_dis=0.0) -> Tuple[float, int, int]:
     samples = 0
-    rotate_scale(NGP_pose, 0.5, 0.5, 0.0, 2.5)
+    #rotate_scale(NGP_pose, 0.5, 0.5, 0.0, 2.5)
     reset(NGP_counter, NGP_alive_indices, NGP_opacity, NGP_rgb)
 
-    ray_intersect(NGP_counter, NGP_pose, NGP_directions, NGP_hits_t,
-                  NGP_rays_o, NGP_rays_d)
+    get_rays(NGP_pose, NGP_directions, NGP_rays_o, NGP_rays_d)
+    ray_aabb_intersect(NGP_hits_t, NGP_rays_o, NGP_rays_d, scale)
 
     while samples < max_samples:
         N_alive = NGP_counter[0]
@@ -186,6 +192,7 @@ if __name__ == '__main__':
         #     THIS IS FOR DEBUG ONLY     #
         # Run inference on local machine #
         ##################################
+        # Others
         NGP_hits_t = ti.Vector.ndarray(n=2, dtype=data_type, shape=(NGP_N_rays))
         
         fill_ndarray(NGP_hits_t, -1.0)
@@ -223,7 +230,7 @@ if __name__ == '__main__':
         # model parameters
         sigma_layer1_base = 16 * 16
         layer1_base = 32 * 16
-        NGP_hash_embedding = ti.ndarray(dtype=data_type, shape=(11176096, ))
+        NGP_hash_embedding = ti.ndarray(dtype=data_type, shape=(17956864, ))
         NGP_sigma_weights = ti.ndarray(dtype=data_type,
                                        shape=(sigma_layer1_base + 16 * 16, ))
         NGP_rgb_weights = ti.ndarray(dtype=data_type,

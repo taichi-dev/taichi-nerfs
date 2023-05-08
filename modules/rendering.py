@@ -33,11 +33,8 @@ def render(
     hits_t = ray_aabb_intersection(
         rays_o.contiguous(), 
         rays_d.contiguous(), 
-        model.center, 
-        model.half_size, 
+        model.scale
     )
-    mask = (hits_t[:, 0] >= 0) & (hits_t[:, 0] < NEAR_DISTANCE)
-    hits_t[mask, 0] = NEAR_DISTANCE
 
     if test_time:
         return __render_rays_test(

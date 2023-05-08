@@ -87,10 +87,10 @@ def main():
         model_config = {
             'scale': hparams.scale,
             'pos_encoder_type': 'hash',
-            'level': 4,
+            'levels': 4,
             'feature_per_level': 4,
             'base_res': 32,
-            'max_resolution': 256,
+            'max_res': 256,
             'log2_T': 21,
             'xyz_net_width': 16,
             'rgb_net_width': 16,
