@@ -10,9 +10,9 @@ from modules.intersection import ray_aabb_intersect, get_rays_test_kernel
 import numpy as np
 import taichi as ti
 from matplotlib import pyplot as plt
-from kernels import args, np_type, data_type,\
+from .utils import args, np_type, data_type,\
                     rotate_scale, reset,\
-                    ray_intersect, raymarching_test_kernel,\
+                    raymarching_test_kernel,\
                     re_arrange_index, radiance_field, composite_test,\
                     re_order, fill_ndarray,\
                     init_current_index, rotate_scale,\
@@ -21,10 +21,12 @@ from kernels import args, np_type, data_type,\
                     NGP_res, NGP_N_rays, NGP_min_samples
 
 
-ti.init(arch=ti.vulkan,
-        enable_fallback=False,
-        debug=False,
-        kernel_profiler=False)
+ti.init(
+    arch=ti.vulkan,
+    enable_fallback=False,
+    debug=False,
+    kernel_profiler=False
+)
 
 #########################
 # Compile for AOT files #
@@ -87,7 +89,8 @@ def prepare_aot_files(model):
     m = ti.aot.Module(
         caps=['spirv_has_int8', 'spirv_has_int16', 'spirv_has_float16'])
     m.add_kernel(reset)
-    m.add_kernel(ray_intersect)
+    m.add_field(get_rays_test_kernel)
+    m.add_kernel(ray_aabb_intersect)
     m.add_kernel(raymarching_test_kernel)
     m.add_kernel(re_arrange_index)
     m.add_kernel(radiance_field)
@@ -120,16 +123,30 @@ def update_model_weights(model):
 
 
 
-def run_inference(max_samples,
-                  T_threshold,
-                  dist_to_focus=0.8,
-                  len_dis=0.0) -> Tuple[float, int, int]:
+def run_inference(
+    max_samples,
+    T_threshold,
+) -> Tuple[float, int, int]:
     samples = 0
     #rotate_scale(NGP_pose, 0.5, 0.5, 0.0, 2.5)
-    reset(NGP_counter, NGP_alive_indices, NGP_opacity, NGP_rgb)
-
-    get_rays_test_kernel(NGP_pose, NGP_directions, NGP_rays_o, NGP_rays_d)
-    ray_aabb_intersect(NGP_hits_t, NGP_rays_o, NGP_rays_d, scale)
+    reset(
+        NGP_counter, 
+        NGP_alive_indices, 
+        NGP_opacity, 
+        NGP_rgb
+    )
+    get_rays_test_kernel(
+        NGP_pose, 
+        NGP_directions, 
+        NGP_rays_o, 
+        NGP_rays_d
+    )
+    ray_aabb_intersect(
+        NGP_hits_t, 
+        NGP_rays_o,
+        NGP_rays_d, 
+        scale
+    )
 
     while samples < max_samples:
         N_alive = NGP_counter[0]
@@ -190,7 +207,12 @@ def run_inference(max_samples,
             N_samples,
             T_threshold,
         )
-        re_order(NGP_counter, NGP_alive_indices, NGP_current_index, N_alive)
+        re_order(
+            NGP_counter, 
+            NGP_alive_indices, 
+            NGP_current_index, 
+            N_alive
+        )
 
     return samples, N_alive, N_samples
 
@@ -198,8 +220,10 @@ def run_inference(max_samples,
 def inference_local(n=1):
     
     for _ in range(n):
-        samples, N_alive, N_samples = run_inference(max_samples=100, T_threshold=1e-2)
-    
+        _, _, _ = run_inference(
+            max_samples=100, 
+            T_threshold=1e-2
+        )
     ti.sync()
     
     # Show inferenced image
@@ -207,7 +231,6 @@ def inference_local(n=1):
     plt.imshow((rgb_np * 255).astype(np.uint8))
     plt.show()
     
-
 if __name__ == '__main__':
     model = load_deployment_model(args.model_path)
     initialize()

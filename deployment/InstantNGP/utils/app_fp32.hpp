@@ -7,11 +7,11 @@ public:
   ti::Runtime runtime_;
   ti::AotModule module_;
   ti::Kernel k_reset_;
+  ti::Kernel k_get_rays_;
   ti::Kernel k_ray_intersect_;
   ti::Kernel k_raymarching_test_kernel_;
   ti::Kernel k_rearange_index_;
-  ti::Kernel k_hash_encode_;
-  ti::Kernel k_mlp_layer_;
+  ti::Kernel k_radiance_field_;
   ti::Kernel k_composite_test_;
   ti::Kernel k_re_order_;
   ti::Kernel k_fill_ndarray_;

@@ -174,13 +174,17 @@ void App_nerf_f32::initialize(int img_width, int img_height,
     k_reset_[2] = opacity_;
     k_reset_[3] = rgb_;
 
-    k_ray_intersect_ = module_.get_kernel("ray_intersect");
-    k_ray_intersect_[0] = counter_;
-    k_ray_intersect_[1] = pose_;
-    k_ray_intersect_[2] = directions_;
-    k_ray_intersect_[3] = hits_t_;
-    k_ray_intersect_[4] = rays_o_;
-    k_ray_intersect_[5] = rays_d_;
+    k_get_rays_ = module_.get_kernel("get_rays_test_kernel");
+    k_get_rays_[0] = pose_;
+    k_get_rays_[1] = directions_;
+    k_get_rays_[2] = rays_o_;
+    k_get_rays_[3] = rays_d_;
+
+    k_ray_intersect_ = module_.get_kernel("ray_aabb_intersect");
+    k_ray_intersect_[0] = hits_t_;
+    k_ray_intersect_[1] = rays_o_;
+    k_ray_intersect_[2] = rays_d_;
+    k_ray_intersect_[3] = 0.5f;
 
     k_raymarching_test_kernel_ = module_.get_kernel("raymarching_test_kernel");
     k_raymarching_test_kernel_[0] = counter_;
@@ -197,31 +201,23 @@ void App_nerf_f32::initialize(int img_width, int img_height,
     k_raymarching_test_kernel_[11] = run_model_ind_;
     k_raymarching_test_kernel_[12] = N_eff_samples_;
 
-    k_rearange_index_ = module_.get_kernel("rearange_index");
+    k_rearange_index_ = module_.get_kernel("re_arrange_index");
     k_rearange_index_[0] = model_launch_;
     k_rearange_index_[1] = pad_block_network_;
     k_rearange_index_[2] = temp_hit_;
     k_rearange_index_[3] = run_model_ind_;
 
-    k_hash_encode_ = module_.get_kernel("hash_encode");
-    k_hash_encode_[0] = hash_embedding_;
-    k_hash_encode_[1] = model_launch_;
-    k_hash_encode_[2] = xyzs_;
-    k_hash_encode_[3] = dirs_;
-    k_hash_encode_[4] = deltas_;
-    k_hash_encode_[5] = xyzs_embedding_;
-    k_hash_encode_[6] = temp_hit_;
-
-    k_mlp_layer_ = module_.get_kernel("sigma_rgb_layer");
-    k_mlp_layer_[0] = sigma_weights_;
-    k_mlp_layer_[1] = rgb_weights_;
-    k_mlp_layer_[2] = model_launch_;
-    k_mlp_layer_[3] = pad_block_network_;
-    k_mlp_layer_[4] = xyzs_embedding_;
-    k_mlp_layer_[5] = dirs_;
-    k_mlp_layer_[6] = out_1_;
-    k_mlp_layer_[7] = out_3_;
-    k_mlp_layer_[8] = temp_hit_;
+    k_radiance_field_ = module_.get_kernel("radiance_field");
+    k_radiance_field_[0] = hash_embedding_;
+    k_radiance_field_[1] = model_launch_;
+    k_radiance_field_[2] = xyzs_;
+    k_radiance_field_[3] = sigma_weights_;
+    k_radiance_field_[4] = rgb_weights_;
+    k_radiance_field_[5] = pad_block_network_;
+    k_radiance_field_[6] = dirs_;
+    k_radiance_field_[7] = out_1_;
+    k_radiance_field_[8] = out_3_;
+    k_radiance_field_[9] = temp_hit_;
 
     k_composite_test_ = module_.get_kernel("composite_test");
     k_composite_test_[0] = counter_;
@@ -260,6 +256,7 @@ std::vector<float> App_nerf_f32::run() {
 
   for (int n_time = 0; n_time < kRepeat; n_time += 1) {
     k_reset_.launch();
+    k_get_rays_.launch();
     k_ray_intersect_.launch();
 
     samples = 0;
@@ -283,9 +280,8 @@ std::vector<float> App_nerf_f32::run() {
       k_rearange_index_[4] = launch_model_total;
       k_rearange_index_.launch();
 
-      k_hash_encode_.launch();
+      k_radiance_field_.launch();
 
-      k_mlp_layer_.launch();
       k_composite_test_[10] = N_samples;
       k_composite_test_.launch();
 
