@@ -233,7 +233,7 @@ def rearange_index(
         if NGP_run_model_ind[i]:
             index = ti.atomic_add(NGP_model_launch[None], 1)
             NGP_temp_hit[index] = i
-
+        NGP_run_model_ind[i] = 0
     NGP_model_launch[None] += 1
     NGP_padd_block_network[None] = (
         (NGP_model_launch[None] + block_dim - 1) // block_dim) * block_dim
@@ -319,7 +319,6 @@ def raymarching_test_kernel(
         NGP_run_model_ind: ti.types.ndarray(dtype=ti.i32, ndim=1),
         NGP_N_eff_samples: ti.types.ndarray(dtype=ti.i32,
                                             ndim=1), N_samples: int):
-    
     for n in ti.ndrange(counter[0]):
         c_index = NGP_current_index[None]
         r = NGP_alive_indices[n * 2 + c_index]
@@ -447,12 +446,13 @@ def hash_encode(
 
 # Taichi implementation of MLP 
 @ti.kernel
-def sigma_rgb_layer(
+def radiance_field(
+        NGP_hash_embedding: ti.types.ndarray(dtype=data_type, ndim=1),
+        NGP_model_launch: ti.types.ndarray(ti.i32, ndim=0),
+        NGP_xyzs: ti.types.ndarray(dtype=tf_vec3, ndim=1),
         NGP_sigma_weights: ti.types.ndarray(dtype=data_type, ndim=1),
         NGP_rgb_weights: ti.types.ndarray(dtype=data_type, ndim=1),
-        NGP_model_launch: ti.types.ndarray(dtype=ti.i32, ndim=0),
         NGP_padd_block_network: ti.types.ndarray(dtype=ti.i32, ndim=0),
-        NGP_xyzs_embedding: ti.types.ndarray(dtype=data_type, ndim=2),
         NGP_dirs: ti.types.ndarray(dtype=tf_vec3, ndim=1),
         NGP_out_1: ti.types.ndarray(dtype=data_type, ndim=1),
         NGP_out_3: ti.types.ndarray(data_type, ndim=2),
@@ -478,6 +478,58 @@ def sigma_rgb_layer(
         ti.simt.block.sync()
 
         if sn < did_launch_num:
+            xyzs_embedding = tf_vec32(0.0)
+            
+            for level in ti.static(range(NGP_level)):
+                xyz = NGP_xyzs[NGP_temp_hit[sn]] + 0.5
+                offset = NGP_offsets[level] * 4
+
+                init_val0 = tf_vec1(0.0)
+                init_val1 = tf_vec1(1.0)
+                local_feature_0 = init_val0[0]
+                local_feature_1 = init_val0[0]
+                local_feature_2 = init_val0[0]
+                local_feature_3 = init_val0[0]
+
+                scale = NGP_base_res * ti.exp(
+                    level * NGP_per_level_scales) - 1.0
+                resolution = ti.cast(ti.ceil(scale), ti.uint32) + 1
+
+                pos = xyz * scale + 0.5
+                pos_grid_uint = ti.cast(ti.floor(pos), ti.uint32)
+                pos -= pos_grid_uint
+
+                for idx in ti.static(range(8)):
+                    w = init_val1[0]
+                    pos_grid_local = uvec3(0)
+
+                    for d in ti.static(range(3)):
+                        if (idx & (1 << d)) == 0:
+                            pos_grid_local[d] = pos_grid_uint[d]
+                            w *= data_type(1 - pos[d])
+                        else:
+                            pos_grid_local[d] = pos_grid_uint[d] + 1
+                            w *= data_type(pos[d])
+
+                    index = 0
+                    stride = 1
+                    for c_ in ti.static(range(3)):
+                        index += pos_grid_local[c_] * stride
+                        stride *= resolution
+
+                    local_feature_0 += data_type(
+                        w * NGP_hash_embedding[offset + index * 4])
+                    local_feature_1 += data_type(
+                        w * NGP_hash_embedding[offset + index * 4 + 1])
+                    local_feature_2 += data_type(
+                        w * NGP_hash_embedding[offset + index * 4 + 2])
+                    local_feature_3 += data_type(
+                        w * NGP_hash_embedding[offset + index * 4 + 3])
+
+                xyzs_embedding[level * 4] = local_feature_0
+                xyzs_embedding[level * 4 + 1] = local_feature_1
+                xyzs_embedding[level * 4 + 2] = local_feature_2
+                xyzs_embedding[level * 4 + 3] = local_feature_3
 
             s0 = init_val[0]
             s1 = init_val[0]
@@ -490,8 +542,7 @@ def sigma_rgb_layer(
             for i in range(16):
                 temp = init_val[0]
                 for j in ti.static(range(16)):
-                    temp += NGP_xyzs_embedding[sn,
-                                               j] * sigma_weight[i * 16 + j]
+                    temp += xyzs_embedding[j] * sigma_weight[i * 16 + j]
 
                 for j in ti.static(range(16)):
                     sigma_output_val[j] += data_type(ti.max(
