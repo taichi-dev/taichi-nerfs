@@ -1,9 +1,73 @@
-import taichi as ti
 import torch
+import taichi as ti
 from taichi.math import vec3, vec2
-
 from .utils import NEAR_DISTANCE
 
+mat3x4 = ti.types.matrix(3, 4, ti.f32)
+mat1x3 = ti.types.matrix(1, 3, ti.f32)
+
+
+@ti.func
+def __get_rays(c2w, direction):
+
+    mat_result = direction @ c2w[:, :3].transpose()
+    ray_d = vec3(mat_result[0, 0], mat_result[0, 1], mat_result[0, 2])
+    ray_o = c2w[:, 3]
+
+    return ray_o, ray_d
+
+@ti.kernel
+def get_rays_test_kernel(
+    pose: ti.types.ndarray(dtype=mat3x4, ndim=0),
+    directions: ti.types.ndarray(dtype=mat1x3, ndim=1),
+    rays_o: ti.types.ndarray(dtype=vec3, ndim=1),
+    rays_d: ti.types.ndarray(dtype=vec3, ndim=1),
+):
+    for i in ti.ndrange(directions.shape[0]):
+        c2w = pose[None]
+        direction = directions[i]
+
+        ray_o, ray_d = __get_rays(c2w, direction)
+
+        rays_o[i] = ray_o
+        rays_d[i] = ray_d
+
+@ti.kernel
+def get_rays_train_kernel(
+    pose: ti.types.ndarray(dtype=mat3x4, ndim=1),
+    directions: ti.types.ndarray(dtype=mat1x3, ndim=1),
+    rays_o: ti.types.ndarray(dtype=vec3, ndim=1),
+    rays_d: ti.types.ndarray(dtype=vec3, ndim=1),
+):
+    for i in ti.ndrange(directions.shape[0]):
+        c2w = pose[i]
+        direction = directions[i]
+        
+        ray_o, ray_d = __get_rays(c2w, direction)
+
+        rays_o[i] = ray_o
+        rays_d[i] = ray_d
+
+def get_rays(directions, pose):
+    rays_o = torch.empty_like(directions)
+    rays_d = torch.empty_like(directions)
+
+    if len(pose.shape) == 3:
+        get_rays_train_kernel(
+            pose,
+            directions.unsqueeze(1),
+            rays_o, 
+            rays_d,  
+        )
+    else:
+        get_rays_test_kernel(
+            pose,
+            directions.unsqueeze(1),
+            rays_o, 
+            rays_d,  
+        )
+
+    return rays_o, rays_d
 
 @ti.kernel
 def ray_aabb_intersect(
