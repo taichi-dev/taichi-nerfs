@@ -78,7 +78,7 @@ class DirEncoder(torch.nn.Module):
                     requires_grad=True,
                 )
                 self._dir_encoder_kernel(
-                    input_dir.contiguous(), 
+                    input_dir, 
                     output_embedding,
                     input_dir.shape[0]
                 )
@@ -90,7 +90,7 @@ class DirEncoder(torch.nn.Module):
                 input_dir, output_embedding = ctx.saved_tensors
                 output_embedding.grad = doutput
                 self._dir_encoder_kernel.grad(
-                    input_dir.contiguous(), 
+                    input_dir, 
                     output_embedding,
                     input_dir.shape[0]
                 )
@@ -99,4 +99,4 @@ class DirEncoder(torch.nn.Module):
         self._module_function = _module_function.apply
 
     def forward(self, dirs):
-        return self._module_function(dirs)
+        return self._module_function(dirs.contiguous())

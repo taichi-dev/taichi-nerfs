@@ -98,11 +98,11 @@ class VolumeRenderer(torch.nn.Module):
                 )
 
                 self._volume_rendering_kernel(
-                    sigmas.contiguous(), 
-                    rgbs.contiguous(), 
-                    deltas.contiguous(), 
-                    ts.contiguous(), 
-                    rays_a.contiguous(), 
+                    sigmas, 
+                    rgbs, 
+                    deltas, 
+                    ts, 
+                    rays_a, 
                     T_threshold,
                     T_recap,
                     total_samples,
@@ -158,18 +158,18 @@ class VolumeRenderer(torch.nn.Module):
                 ws.grad = dL_dws
 
                 self._volume_rendering_kernel.grad(
-                    sigmas.contiguous(), 
-                    rgbs.contiguous(), 
-                    deltas.contiguous(), 
-                    ts.contiguous(), 
-                    rays_a.contiguous(), 
+                    sigmas, 
+                    rgbs, 
+                    deltas, 
+                    ts, 
+                    rays_a, 
                     T_threshold,
                     T_recap,
-                    total_samples.contiguous(),
-                    opacity.contiguous(),
-                    depth.contiguous(),
-                    rgb.contiguous(),
-                    ws.contiguous(),
+                    total_samples,
+                    opacity,
+                    depth,
+                    rgb,
+                    ws,
                 )
 
                 return sigmas.grad, rgbs.grad, None, None, None, None
@@ -186,5 +186,10 @@ class VolumeRenderer(torch.nn.Module):
             T_threshold
         ):
         return self._module_function(
-            sigmas, rgbs, deltas, ts, rays_a, T_threshold
+            sigmas.contiguous(), 
+            rgbs.contiguous(), 
+            deltas.contiguous(), 
+            ts.contiguous(), 
+            rays_a.contiguous(), 
+            T_threshold,
         )
