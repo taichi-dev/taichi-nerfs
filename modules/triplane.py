@@ -168,9 +168,9 @@ class TriPlaneEncoder(torch.nn.Module):
                 )
                 # print("output_embedding shape: ", output_embedding.shape)
                 self._encode_kernel(
-                    input_pos.contiguous(),
-                    params.contiguous(),
-                    output_embedding.contiguous(),
+                    input_pos,
+                    params,
+                    output_embedding,
                     input_pos.shape[0],
                 )
                 ctx.save_for_backward(
@@ -189,9 +189,9 @@ class TriPlaneEncoder(torch.nn.Module):
                 output_embedding.grad = doutput
 
                 self._encode_kernel.grad(
-                    input_pos.contiguous(),
-                    params.contiguous(),
-                    output_embedding.contiguous(),
+                    input_pos,
+                    params,
+                    output_embedding,
                     input_pos.shape[0],
                 )
                 return None, params.grad
@@ -199,4 +199,7 @@ class TriPlaneEncoder(torch.nn.Module):
         self._module_function = _module_function.apply
 
     def forward(self, positions):
-        return self._module_function(positions, self.plane_embedding)
+        return self._module_function(
+            positions.contiguous(), 
+            self.plane_embedding.contiguous()
+        )

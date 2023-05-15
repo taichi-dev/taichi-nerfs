@@ -246,11 +246,11 @@ class HashEncoder(torch.nn.Module):
                     requires_grad=True,
                 )
                 self._hash_encoder_kernel(
-                    input_pos.contiguous(),
-                    params.contiguous(),
-                    output_embedding.contiguous(),
-                    self.hash_map_sizes.contiguous(),
-                    self.offsets.contiguous(),
+                    input_pos,
+                    params,
+                    output_embedding,
+                    self.hash_map_sizes,
+                    self.offsets,
                     input_pos.shape[0],
                 )
                 ctx.save_for_backward(
@@ -267,11 +267,11 @@ class HashEncoder(torch.nn.Module):
                 output_embedding.grad = doutput
 
                 self._hash_encoder_kernel.grad(
-                    input_pos.contiguous(),
-                    params.contiguous(),
-                    output_embedding.contiguous(),
-                    self.hash_map_sizes.contiguous(),
-                    self.offsets.contiguous(),
+                    input_pos,
+                    params,
+                    output_embedding,
+                    self.hash_map_sizes,
+                    self.offsets,
                     input_pos.shape[0],
                 )
                 return None, params.grad
@@ -279,5 +279,8 @@ class HashEncoder(torch.nn.Module):
         self._module_function = _module_function.apply
         
     def forward(self, positions):
-        return self._module_function(positions, self.hash_table)
+        return self._module_function(
+            positions.contiguous(), 
+            self.hash_table.contiguous(),
+        )
     
