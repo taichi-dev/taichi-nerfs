@@ -39,8 +39,8 @@ For example, let's say we want to adjust the camera resolution.
 1. Modify `taichi_ngp.py`:
 For our example only, `taichi_ngp.py` already supports adjusting the camera resolution via `--res_w` `--res_h`
 
-2. Install Taichi v1.5.0:
-  * `python3 -m pip install taichi==1.5.0`
+2. Install Taichi v1.6.0:
+  * `python3 -m pip install taichi==1.6.0`
 
 3. Regenerate AOT files:
 `python3 InstantNGP/taichi_ngp.py --scene smh_lego --aot --res_w=100 --res_h=200`
@@ -63,8 +63,8 @@ app.initialize(img_width, img_height,
 5. Install the Demo following steps from **Build and Install the Demo**
 
 ## Train and deploy your own NGP model
-1. Install Taichi v1.5.0:
-  * `python3 -m pip install taichi==1.5.0`
+1. Install Taichi v1.6.0:
+  * `python3 -m pip install taichi==1.6.0`
 
 2. Train a deployable model
   * Go to the root directory of this repository
