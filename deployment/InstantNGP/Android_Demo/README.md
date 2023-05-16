@@ -12,7 +12,12 @@ There's also performance optimization opportunities wrt Android deployment.
 ## Prerequisites 
 1. Device running Android with Vulkan support
 2. Android Studio: https://developer.android.com/studio
-3. Android Studio - abd: https://developer.android.com/tools/adb
+3. Android Studio - adb: https://developer.android.com/tools/adb
+4. Export ANDROID_NDK_ROOT and ANDROID_SDK_ROOT, for example:
+```
+export ANDROID_NDK_ROOT=~/Android/Sdk/ndk/25.1.8937393/
+export ANDROID_SDK_ROOT=~/Android/Sdk/
+```
 
 ## Build and Install the Demo
 1. Change camera position if neccessary
