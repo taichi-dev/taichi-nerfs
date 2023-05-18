@@ -30,7 +30,7 @@ warnings.filterwarnings("ignore")
 
 def taichi_init(args):
     taichi_init_args = {"arch": ti.cuda,}
-    if args.half2_opt:
+    if args.half_opt:
         taichi_init_args["half2_vectorization"] = True
 
     ti.init(**taichi_init_args)
@@ -101,6 +101,7 @@ def main():
             'scale': hparams.scale,
             'pos_encoder_type': hparams.encoder_type,
             'max_res': 1024 if hparams.scale == 0.5 else 4096,
+            'half_opt': hparams.half_opt,
         }
 
     # model
@@ -120,7 +121,11 @@ def main():
 
     # use large scaler, the default scaler is 2**16 
     # TODO: investigate why the gradient is small
-    grad_scaler = torch.cuda.amp.GradScaler(2**19)
+    if hparams.half_opt:
+        scaler = 2**16
+    else:
+        scaler = 2**19
+    grad_scaler = torch.cuda.amp.GradScaler(scaler)
     # optimizer
     try:
         import apex
@@ -230,16 +235,17 @@ def main():
             rgb_gt = test_data['rgb']
             poses = test_data['pose']
 
-            # get rays
-            rays_o, rays_d = get_rays(directions, poses)
-            # render image
-            results = render(
-                model, 
-                rays_o, 
-                rays_d,
-                test_time=True,
-                exp_step_factor=exp_step_factor,
-            )
+            with torch.autocast(device_type='cuda', dtype=torch.float16):
+                # get rays
+                rays_o, rays_d = get_rays(directions, poses)
+                # render image
+                results = render(
+                    model, 
+                    rays_o, 
+                    rays_d,
+                    test_time=True,
+                    exp_step_factor=exp_step_factor,
+                )
             # TODO: get rid of this
             rgb_pred = rearrange(results['rgb'], '(h w) c -> 1 c h w', h=h)
             rgb_gt = rearrange(rgb_gt, '(h w) c -> 1 c h w', h=h)

@@ -31,10 +31,10 @@ def get_opts(prefix_args=None):
         default=0.5,
         help='scene scale (whole scene must lie in [-scale, scale]^3')
 
-    parser.add_argument('--half2_opt',
+    parser.add_argument('--half_opt',
                         action='store_true',
                         default=False,
-                        help='whether to use half2 optimization')
+                        help='whether to use half optimization')
     
     parser.add_argument('--encoder_type',
                         type=str,
