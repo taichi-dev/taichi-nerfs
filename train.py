@@ -15,9 +15,9 @@ import torch.nn.functional as F
 from gui import NGPGUI
 from opt import get_opts
 from datasets import dataset_dict
-from datasets.ray_utils import get_rays
 
 from modules.networks import NGP
+from modules.intersection import get_rays
 from modules.distortion import distortion_loss
 from modules.rendering import MAX_SAMPLES, render
 from modules.utils import depth2img, save_deployment_model

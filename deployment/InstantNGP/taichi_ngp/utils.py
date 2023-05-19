@@ -1,8 +1,8 @@
-import taichi as ti
 import os
-import numpy as np
-import argparse
 import wget
+import argparse
+import numpy as np
+import taichi as ti
 from taichi.math import uvec3
 
 def parse_arguments():
@@ -222,7 +222,7 @@ def fill_ndarray(
 
 
 @ti.kernel
-def rearange_index(
+def re_arrange_index(
         NGP_model_launch: ti.types.ndarray(ti.i32, ndim=0),
         NGP_padd_block_network: ti.types.ndarray(ti.i32, ndim=0),
         NGP_temp_hit: ti.types.ndarray(ti.i32, ndim=1),
@@ -233,7 +233,7 @@ def rearange_index(
         if NGP_run_model_ind[i]:
             index = ti.atomic_add(NGP_model_launch[None], 1)
             NGP_temp_hit[index] = i
-
+        NGP_run_model_ind[i] = 0
     NGP_model_launch[None] += 1
     NGP_padd_block_network[None] = (
         (NGP_model_launch[None] + block_dim - 1) // block_dim) * block_dim
@@ -259,67 +259,25 @@ def re_order(counter: ti.types.ndarray(ti.i32, ndim=1),
 # Taichi NGP Kernels #
 ######################
 # Most of these kernels are modified from the training code
-@ti.func
-def _ray_aabb_intersec(ray_o, ray_d):
-    inv_d = 1.0 / ray_d
-
-    t_min = (NGP_center - NGP_half_size - ray_o) * inv_d
-    t_max = (NGP_center + NGP_half_size - ray_o) * inv_d
-
-    _t1 = ti.min(t_min, t_max)
-    _t2 = ti.max(t_min, t_max)
-    t1 = _t1.max()
-    t2 = _t2.min()
-
-    return tf_vec2(t1, t2)
-
-
-@ti.kernel
-def ray_intersect(
-        counter: ti.types.ndarray(ti.i32, ndim=1),
-        NGP_pose: ti.types.ndarray(dtype=ti.types.matrix(3, 4,
-                                                         dtype=data_type),
-                                   ndim=0),
-        NGP_directions: ti.types.ndarray(dtype=ti.types.matrix(
-            1, 3, dtype=data_type),
-                                         ndim=1),
-        NGP_hits_t: ti.types.ndarray(dtype=tf_vec2, ndim=1),
-        NGP_rays_o: ti.types.ndarray(dtype=tf_vec3, ndim=1),
-        NGP_rays_d: ti.types.ndarray(dtype=tf_vec3, ndim=1),
-):
-    for i in ti.ndrange(counter[0]):
-        c2w = NGP_pose[None]
-        mat_result = NGP_directions[i] @ c2w[:, :3].transpose()
-        ray_d = tf_vec3(mat_result[0, 0], mat_result[0, 1], mat_result[0, 2])
-        ray_o = c2w[:, 3]
-
-        t1t2 = _ray_aabb_intersec(ray_o, ray_d)
-
-        if t1t2[1] > 0.0:
-            NGP_hits_t[i][0] = data_type(ti.max(t1t2[0], NEAR_DISTANCE))
-            NGP_hits_t[i][1] = t1t2[1]
-
-        NGP_rays_o[i] = ray_o
-        NGP_rays_d[i] = ray_d
 
 # Modified from "modules/ray_march.py"
 @ti.kernel
 def raymarching_test_kernel(
-        counter: ti.types.ndarray(ti.i32, ndim=1),
-        NGP_density_bitfield: ti.types.ndarray(dtype=ti.u32, ndim=1),
-        NGP_hits_t: ti.types.ndarray(dtype=tf_vec2, ndim=1),
-        NGP_alive_indices: ti.types.ndarray(dtype=ti.i32, ndim=1),
-        NGP_rays_o: ti.types.ndarray(dtype=tf_vec3, ndim=1),
-        NGP_rays_d: ti.types.ndarray(dtype=tf_vec3, ndim=1),
-        NGP_current_index: ti.types.ndarray(dtype=ti.i32, ndim=0),
-        NGP_xyzs: ti.types.ndarray(dtype=tf_vec3, ndim=1),
-        NGP_dirs: ti.types.ndarray(dtype=tf_vec3, ndim=1),
-        NGP_deltas: ti.types.ndarray(dtype=data_type, ndim=1),
-        NGP_ts: ti.types.ndarray(dtype=data_type, ndim=1),
-        NGP_run_model_ind: ti.types.ndarray(dtype=ti.i32, ndim=1),
-        NGP_N_eff_samples: ti.types.ndarray(dtype=ti.i32,
-                                            ndim=1), N_samples: int):
-    
+    counter: ti.types.ndarray(ti.i32, ndim=1),
+    NGP_density_bitfield: ti.types.ndarray(dtype=ti.u32, ndim=1),
+    NGP_hits_t: ti.types.ndarray(dtype=tf_vec2, ndim=1),
+    NGP_alive_indices: ti.types.ndarray(dtype=ti.i32, ndim=1),
+    NGP_rays_o: ti.types.ndarray(dtype=tf_vec3, ndim=1),
+    NGP_rays_d: ti.types.ndarray(dtype=tf_vec3, ndim=1),
+    NGP_current_index: ti.types.ndarray(dtype=ti.i32, ndim=0),
+    NGP_xyzs: ti.types.ndarray(dtype=tf_vec3, ndim=1),
+    NGP_dirs: ti.types.ndarray(dtype=tf_vec3, ndim=1),
+    NGP_deltas: ti.types.ndarray(dtype=data_type, ndim=1),
+    NGP_ts: ti.types.ndarray(dtype=data_type, ndim=1),
+    NGP_run_model_ind: ti.types.ndarray(dtype=ti.i32, ndim=1),
+    NGP_N_eff_samples: ti.types.ndarray(dtype=ti.i32, ndim=1), 
+    N_samples: int,
+):
     for n in ti.ndrange(counter[0]):
         c_index = NGP_current_index[None]
         r = NGP_alive_indices[n * 2 + c_index]
@@ -381,82 +339,18 @@ def raymarching_test_kernel(
             NGP_alive_indices[n * 2 + c_index] = -1
 
 
-# Modified from "modules/hash_encoder_deploy.py"
 @ti.kernel
-def hash_encode(
-        NGP_hash_embedding: ti.types.ndarray(dtype=data_type, ndim=1),
-        NGP_model_launch: ti.types.ndarray(ti.i32, ndim=0),
-        NGP_xyzs: ti.types.ndarray(dtype=tf_vec3, ndim=1),
-        NGP_dirs: ti.types.ndarray(dtype=tf_vec3, ndim=1),
-        NGP_deltas: ti.types.ndarray(dtype=data_type, ndim=1),
-        NGP_xyzs_embedding: ti.types.ndarray(dtype=data_type, ndim=2),
-        NGP_temp_hit: ti.types.ndarray(ti.i32, ndim=1),
-):
-    for sn in ti.ndrange(NGP_model_launch[None]):
-        for level in ti.static(range(NGP_level)):
-            xyz = NGP_xyzs[NGP_temp_hit[sn]] + 0.5
-            offset = NGP_offsets[level] * 4
-
-            init_val0 = tf_vec1(0.0)
-            init_val1 = tf_vec1(1.0)
-            local_feature_0 = init_val0[0]
-            local_feature_1 = init_val0[0]
-            local_feature_2 = init_val0[0]
-            local_feature_3 = init_val0[0]
-
-            scale = NGP_base_res * ti.exp(
-                level * NGP_per_level_scales) - 1.0
-            resolution = ti.cast(ti.ceil(scale), ti.uint32) + 1
-
-            pos = xyz * scale + 0.5
-            pos_grid_uint = ti.cast(ti.floor(pos), ti.uint32)
-            pos -= pos_grid_uint
-
-            for idx in ti.static(range(8)):
-                w = init_val1[0]
-                pos_grid_local = uvec3(0)
-
-                for d in ti.static(range(3)):
-                    if (idx & (1 << d)) == 0:
-                        pos_grid_local[d] = pos_grid_uint[d]
-                        w *= data_type(1 - pos[d])
-                    else:
-                        pos_grid_local[d] = pos_grid_uint[d] + 1
-                        w *= data_type(pos[d])
-
-                index = 0
-                stride = 1
-                for c_ in ti.static(range(3)):
-                    index += pos_grid_local[c_] * stride
-                    stride *= resolution
-
-                local_feature_0 += data_type(
-                    w * NGP_hash_embedding[offset + index * 4])
-                local_feature_1 += data_type(
-                    w * NGP_hash_embedding[offset + index * 4 + 1])
-                local_feature_2 += data_type(
-                    w * NGP_hash_embedding[offset + index * 4 + 2])
-                local_feature_3 += data_type(
-                    w * NGP_hash_embedding[offset + index * 4 + 3])
-
-            NGP_xyzs_embedding[sn, level * 4] = local_feature_0
-            NGP_xyzs_embedding[sn, level * 4 + 1] = local_feature_1
-            NGP_xyzs_embedding[sn, level * 4 + 2] = local_feature_2
-            NGP_xyzs_embedding[sn, level * 4 + 3] = local_feature_3
-
-
-# Taichi implementation of MLP 
-@ti.kernel
-def sigma_rgb_layer(
-        NGP_sigma_weights: ti.types.ndarray(dtype=data_type, ndim=1),
-        NGP_rgb_weights: ti.types.ndarray(dtype=data_type, ndim=1),
-        NGP_model_launch: ti.types.ndarray(dtype=ti.i32, ndim=0),
-        NGP_padd_block_network: ti.types.ndarray(dtype=ti.i32, ndim=0),
-        NGP_xyzs_embedding: ti.types.ndarray(dtype=data_type, ndim=2),
-        NGP_dirs: ti.types.ndarray(dtype=tf_vec3, ndim=1),
-        NGP_out_1: ti.types.ndarray(dtype=data_type, ndim=1),
-        NGP_out_3: ti.types.ndarray(data_type, ndim=2),
-        NGP_temp_hit: ti.types.ndarray(ti.i32, ndim=1),
+def radiance_field(
+    NGP_hash_embedding: ti.types.ndarray(dtype=data_type, ndim=1),
+    NGP_model_launch: ti.types.ndarray(ti.i32, ndim=0),
+    NGP_xyzs: ti.types.ndarray(dtype=tf_vec3, ndim=1),
+    NGP_sigma_weights: ti.types.ndarray(dtype=data_type, ndim=1),
+    NGP_rgb_weights: ti.types.ndarray(dtype=data_type, ndim=1),
+    NGP_padd_block_network: ti.types.ndarray(dtype=ti.i32, ndim=0),
+    NGP_dirs: ti.types.ndarray(dtype=tf_vec3, ndim=1),
+    NGP_out_1: ti.types.ndarray(dtype=data_type, ndim=1),
+    NGP_out_3: ti.types.ndarray(data_type, ndim=2),
+    NGP_temp_hit: ti.types.ndarray(ti.i32, ndim=1),
 ):
     ti.loop_config(block_dim=block_dim)  # DO NOT REMOVE
     for sn in ti.ndrange(NGP_padd_block_network[None]):
@@ -478,6 +372,58 @@ def sigma_rgb_layer(
         ti.simt.block.sync()
 
         if sn < did_launch_num:
+            xyzs_embedding = tf_vec32(0.0)
+            
+            for level in ti.static(range(NGP_level)):
+                xyz = NGP_xyzs[NGP_temp_hit[sn]] + 0.5
+                offset = NGP_offsets[level] * 4
+
+                init_val0 = tf_vec1(0.0)
+                init_val1 = tf_vec1(1.0)
+                local_feature_0 = init_val0[0]
+                local_feature_1 = init_val0[0]
+                local_feature_2 = init_val0[0]
+                local_feature_3 = init_val0[0]
+
+                scale = NGP_base_res * ti.exp(
+                    level * NGP_per_level_scales) - 1.0
+                resolution = ti.cast(ti.ceil(scale), ti.uint32) + 1
+
+                pos = xyz * scale + 0.5
+                pos_grid_uint = ti.cast(ti.floor(pos), ti.uint32)
+                pos -= pos_grid_uint
+
+                for idx in ti.static(range(8)):
+                    w = init_val1[0]
+                    pos_grid_local = uvec3(0)
+
+                    for d in ti.static(range(3)):
+                        if (idx & (1 << d)) == 0:
+                            pos_grid_local[d] = pos_grid_uint[d]
+                            w *= data_type(1 - pos[d])
+                        else:
+                            pos_grid_local[d] = pos_grid_uint[d] + 1
+                            w *= data_type(pos[d])
+
+                    index = 0
+                    stride = 1
+                    for c_ in ti.static(range(3)):
+                        index += pos_grid_local[c_] * stride
+                        stride *= resolution
+
+                    local_feature_0 += data_type(
+                        w * NGP_hash_embedding[offset + index * 4])
+                    local_feature_1 += data_type(
+                        w * NGP_hash_embedding[offset + index * 4 + 1])
+                    local_feature_2 += data_type(
+                        w * NGP_hash_embedding[offset + index * 4 + 2])
+                    local_feature_3 += data_type(
+                        w * NGP_hash_embedding[offset + index * 4 + 3])
+
+                xyzs_embedding[level * 4] = local_feature_0
+                xyzs_embedding[level * 4 + 1] = local_feature_1
+                xyzs_embedding[level * 4 + 2] = local_feature_2
+                xyzs_embedding[level * 4 + 3] = local_feature_3
 
             s0 = init_val[0]
             s1 = init_val[0]
@@ -490,8 +436,7 @@ def sigma_rgb_layer(
             for i in range(16):
                 temp = init_val[0]
                 for j in ti.static(range(16)):
-                    temp += NGP_xyzs_embedding[sn,
-                                               j] * sigma_weight[i * 16 + j]
+                    temp += xyzs_embedding[j] * sigma_weight[i * 16 + j]
 
                 for j in ti.static(range(16)):
                     sigma_output_val[j] += data_type(ti.max(

@@ -5,28 +5,28 @@ from typing import Tuple
 
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../"))
-from modules.intersection import ray_aabb_intersect
+from modules.intersection import ray_aabb_intersect, get_rays_test_kernel
 
 import numpy as np
 import taichi as ti
 from matplotlib import pyplot as plt
-from kernels import args, np_type, data_type,\
+from .utils import args, np_type, data_type,\
                     rotate_scale, reset,\
-                    ray_intersect, raymarching_test_kernel,\
-                    rearange_index, hash_encode,\
-                    sigma_rgb_layer, composite_test,\
+                    raymarching_test_kernel,\
+                    re_arrange_index, radiance_field, composite_test,\
                     re_order, fill_ndarray,\
                     init_current_index, rotate_scale,\
                     initialize, load_deployment_model,\
                     cascades, grid_size, scale, \
                     NGP_res, NGP_N_rays, NGP_min_samples
 
-from new_kernels import get_rays
 
-ti.init(arch=ti.vulkan,
-        enable_fallback=False,
-        debug=False,
-        kernel_profiler=False)
+ti.init(
+    arch=ti.vulkan,
+    enable_fallback=False,
+    debug=False,
+    kernel_profiler=False
+)
 
 #########################
 # Compile for AOT files #
@@ -89,11 +89,11 @@ def prepare_aot_files(model):
     m = ti.aot.Module(
         caps=['spirv_has_int8', 'spirv_has_int16', 'spirv_has_float16'])
     m.add_kernel(reset)
-    m.add_kernel(ray_intersect)
+    m.add_field(get_rays_test_kernel)
+    m.add_kernel(ray_aabb_intersect)
     m.add_kernel(raymarching_test_kernel)
-    m.add_kernel(rearange_index)
-    m.add_kernel(hash_encode)
-    m.add_kernel(sigma_rgb_layer)
+    m.add_kernel(re_arrange_index)
+    m.add_kernel(radiance_field)
     m.add_kernel(composite_test)
     m.add_kernel(re_order)
     m.add_kernel(fill_ndarray)
@@ -123,16 +123,30 @@ def update_model_weights(model):
 
 
 
-def run_inference(max_samples,
-                  T_threshold,
-                  dist_to_focus=0.8,
-                  len_dis=0.0) -> Tuple[float, int, int]:
+def run_inference(
+    max_samples,
+    T_threshold,
+) -> Tuple[float, int, int]:
     samples = 0
     #rotate_scale(NGP_pose, 0.5, 0.5, 0.0, 2.5)
-    reset(NGP_counter, NGP_alive_indices, NGP_opacity, NGP_rgb)
-
-    get_rays(NGP_pose, NGP_directions, NGP_rays_o, NGP_rays_d)
-    ray_aabb_intersect(NGP_hits_t, NGP_rays_o, NGP_rays_d, scale)
+    reset(
+        NGP_counter, 
+        NGP_alive_indices, 
+        NGP_opacity, 
+        NGP_rgb
+    )
+    get_rays_test_kernel(
+        NGP_pose, 
+        NGP_directions, 
+        NGP_rays_o, 
+        NGP_rays_d
+    )
+    ray_aabb_intersect(
+        NGP_hits_t, 
+        NGP_rays_o,
+        NGP_rays_d, 
+        scale
+    )
 
     while samples < max_samples:
         N_alive = NGP_counter[0]
@@ -144,23 +158,61 @@ def run_inference(max_samples,
         samples += N_samples
         launch_model_total = N_alive * N_samples
 
-        raymarching_test_kernel(NGP_counter, NGP_density_bitfield, NGP_hits_t,
-                                NGP_alive_indices, NGP_rays_o, NGP_rays_d,
-                                NGP_current_index, NGP_xyzs, NGP_dirs,
-                                NGP_deltas, NGP_ts, NGP_run_model_ind,
-                                NGP_N_eff_samples, N_samples)
-        rearange_index(NGP_model_launch, NGP_padd_block_network, NGP_temp_hit,
-                       NGP_run_model_ind, launch_model_total)
-        hash_encode(NGP_hash_embedding, NGP_model_launch, NGP_xyzs, NGP_dirs,
-                    NGP_deltas, NGP_xyzs_embedding, NGP_temp_hit)
-        sigma_rgb_layer(NGP_sigma_weights, NGP_rgb_weights, NGP_model_launch,
-                        NGP_padd_block_network, NGP_xyzs_embedding, NGP_dirs,
-                        NGP_out_1, NGP_out_3, NGP_temp_hit)
-
-        composite_test(NGP_counter, NGP_alive_indices, NGP_rgb, NGP_opacity,
-                       NGP_current_index, NGP_deltas, NGP_ts, NGP_out_3,
-                       NGP_out_1, NGP_N_eff_samples, N_samples, T_threshold)
-        re_order(NGP_counter, NGP_alive_indices, NGP_current_index, N_alive)
+        raymarching_test_kernel(
+            NGP_counter,
+            NGP_density_bitfield,
+            NGP_hits_t,
+            NGP_alive_indices,
+            NGP_rays_o,
+            NGP_rays_d,
+            NGP_current_index,
+            NGP_xyzs,
+            NGP_dirs,
+            NGP_deltas,
+            NGP_ts,
+            NGP_run_model_ind,
+            NGP_N_eff_samples,
+            N_samples,
+        )
+        re_arrange_index(
+            NGP_model_launch,
+            NGP_padd_block_network,
+            NGP_temp_hit,
+            NGP_run_model_ind,
+            launch_model_total,
+        )
+        radiance_field(
+            NGP_hash_embedding,
+            NGP_model_launch,
+            NGP_xyzs,
+            NGP_sigma_weights,
+            NGP_rgb_weights,
+            NGP_padd_block_network,
+            NGP_dirs,
+            NGP_out_1,
+            NGP_out_3,
+            NGP_temp_hit,
+        )
+        composite_test(
+            NGP_counter,
+            NGP_alive_indices,
+            NGP_rgb,
+            NGP_opacity,
+            NGP_current_index,
+            NGP_deltas,
+            NGP_ts,
+            NGP_out_3,
+            NGP_out_1,
+            NGP_N_eff_samples,
+            N_samples,
+            T_threshold,
+        )
+        re_order(
+            NGP_counter, 
+            NGP_alive_indices, 
+            NGP_current_index, 
+            N_alive
+        )
 
     return samples, N_alive, N_samples
 
@@ -168,8 +220,10 @@ def run_inference(max_samples,
 def inference_local(n=1):
     
     for _ in range(n):
-        samples, N_alive, N_samples = run_inference(max_samples=100, T_threshold=1e-2)
-    
+        _, _, _ = run_inference(
+            max_samples=100, 
+            T_threshold=1e-2
+        )
     ti.sync()
     
     # Show inferenced image
@@ -177,7 +231,6 @@ def inference_local(n=1):
     plt.imshow((rgb_np * 255).astype(np.uint8))
     plt.show()
     
-
 if __name__ == '__main__':
     model = load_deployment_model(args.model_path)
     initialize()
@@ -230,7 +283,7 @@ if __name__ == '__main__':
         # model parameters
         sigma_layer1_base = 16 * 16
         layer1_base = 32 * 16
-        NGP_hash_embedding = ti.ndarray(dtype=data_type, shape=(17956864, ))
+        NGP_hash_embedding = ti.ndarray(dtype=data_type, shape=(11176096, ))
         NGP_sigma_weights = ti.ndarray(dtype=data_type,
                                        shape=(sigma_layer1_base + 16 * 16, ))
         NGP_rgb_weights = ti.ndarray(dtype=data_type,
