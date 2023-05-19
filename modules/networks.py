@@ -15,7 +15,6 @@ from .utils import (
 
 from .rendering import NEAR_DISTANCE
 from .triplane import TriPlaneEncoder
-from .hash_encoder import HashEncoder
 from .volume_train import VolumeRenderer
 from .spherical_harmonics import DirEncoder
 
@@ -46,6 +45,7 @@ class NGP(nn.Module):
             log2_T: int=19, # maximum number of entries per level 2^19
             base_res: int=16, # minimum resolution of  hash table
             max_res: int=2048, # maximum resolution of the hash table
+            half_opt: bool=False, # whether to use half precision, available for hash
             # mlp config
             xyz_net_width: int=64,
             xyz_net_depth: int=1,
@@ -89,6 +89,11 @@ class NGP(nn.Module):
         )
 
         if pos_encoder_type == 'hash':
+            if half_opt:
+                from .hash_encoder_half import HashEncoder
+            else:
+                from .hash_encoder import HashEncoder
+
             self.pos_encoder = HashEncoder(
                 max_params=2**log2_T,
                 base_res=base_res,
