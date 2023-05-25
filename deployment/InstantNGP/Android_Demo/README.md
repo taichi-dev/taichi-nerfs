@@ -48,7 +48,7 @@ For our example only, `taichi_ngp.py` already supports adjusting the camera reso
   * `python3 -m pip install taichi==1.6.0`
 
 3. Regenerate AOT files:
-`python3 InstantNGP/taichi_ngp.py --scene smh_lego --aot --res_w=100 --res_h=200`
+`python3 InstantNGP/taichi_ngp/taichi_ngp.py --scene smh_lego --aot --res_w=100 --res_h=200`
 
 4. Modify the `width` and `height` in C++ code accordingly
   * open `main.cpp` and modify the following lines:
