@@ -7,8 +7,8 @@ from taichi.math import uvec3
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--res_w', type=int, default=800)
-    parser.add_argument('--res_h', type=int, default=800)
+    parser.add_argument('--res_w', type=int, default=300)
+    parser.add_argument('--res_h', type=int, default=600)
     parser.add_argument('--model_path', type=str, default=None)
     parser.add_argument('--aot', action='store_true', default=False)
     return parser.parse_args()
