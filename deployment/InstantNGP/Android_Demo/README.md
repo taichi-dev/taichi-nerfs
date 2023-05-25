@@ -39,9 +39,9 @@ sh scripts/compile_and_run_nerf.sh
 
 ## Train and deploy your own NGP model
 1. Install Taichi nightly:
-  * `python3 -m pip install -i https://pypi.taichi.graphics/simple/ taichi-nightly==1.7.0.post20230523`
+  * `python3 -m pip install -i https://pypi.taichi.graphics/simple/ taichi-nightly==1.7.0.post20230524`
 
-It is strongly adviced that you install taichi-nightly versioned `1.7.0.post20230523` since it's in sync with the pre-compiled C-API library shipped in `taichi_c_api_ios_post20230523.zip` or `c_api`. If you'd like to use your customized taichi version, then please recompile C-API library and replace the `c_api` folder accordingly.
+It is strongly adviced that you install taichi-nightly versioned `1.7.0.post20230524` since it's in sync with the pre-compiled C-API library shipped in `c_api`. Please recompile C-API library if you've used a customized Taichi version.
 
 2. Train a deployable model
   * Go to the root directory of this repository
