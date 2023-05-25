@@ -36,40 +36,12 @@ sh scripts/compile_and_run_nerf.sh
 3. Checkout the output image
   * You'll notice a `out.png` generated in the same folder, which contains the **inferenced image** with current **camera position**.
 
-## Deploy with modified taichi_ngp.py
-Sometimes you may want to modify the Taichi NGP model in `taichi_ngp.py` for fun. Once done editing `taichi_ngp.py`, you will need to regenerate the AOT files. 
-
-For example, let's say we want to adjust the camera resolution. 
-
-1. Modify `taichi_ngp.py`:
-For our example only, `taichi_ngp.py` already supports adjusting the camera resolution via `--res_w` `--res_h`
-
-2. Install Taichi nightly:
-  * `python3 -m pip install -i https://pypi.taichi.graphics/simple/ taichi-nightly`
-
-3. Regenerate AOT files:
-`python3 InstantNGP/taichi_ngp/taichi_ngp.py --scene smh_lego --aot --res_w=100 --res_h=200`
-
-4. Modify the `width` and `height` in C++ code accordingly
-  * open `main.cpp` and modify the following lines:
-```
-int img_width  = 100;
-int img_height = 200;
-app.initialize(img_width, img_height,
-               aot_file_root,
-               hash_embedding_path,
-               sigma_weights_path,
-               rgb_weights_path,
-               density_bitfield_path,
-               pose_path,
-               directions_path);
-```
-
-5. Install the Demo following steps from **Build and Install the Demo**
 
 ## Train and deploy your own NGP model
 1. Install Taichi nightly:
-  * `python3 -m pip install -i https://pypi.taichi.graphics/simple/ taichi-nightly`
+  * `python3 -m pip install -i https://pypi.taichi.graphics/simple/ taichi-nightly==1.7.0.post20230523`
+
+It is strongly adviced that you install taichi-nightly versioned `1.7.0.post20230523` since it's in sync with the pre-compiled C-API library shipped in `taichi_c_api_ios_post20230523.zip` or `c_api`. If you'd like to use your customized taichi version, then please recompile C-API library and replace the `c_api` folder accordingly.
 
 2. Train a deployable model
   * Go to the root directory of this repository
