@@ -210,6 +210,7 @@ class MemorySlice {
 };
 
 class Memory {
+ protected:
   TiRuntime runtime_{TI_NULL_HANDLE};
   TiMemory memory_{TI_NULL_HANDLE};
   size_t size_{0};
@@ -314,6 +315,7 @@ class Memory {
 
 template <typename T>
 class NdArray {
+ protected:
   Memory memory_{};
   TiNdArray ndarray_{};
   size_t elem_count_{};
@@ -507,6 +509,7 @@ class ImageSlice {
 };
 
 class Image {
+ protected:
   TiRuntime runtime_{TI_NULL_HANDLE};
   TiImage image_{TI_NULL_HANDLE};
   TiImageDimension dimension_{TI_IMAGE_DIMENSION_MAX_ENUM};
@@ -627,6 +630,7 @@ class Image {
 };
 
 class Texture {
+ protected:
   Image image_{};
   TiTexture texture_{};
 
@@ -748,6 +752,7 @@ class ArgumentEntry {
 };
 
 class ComputeGraph {
+ protected:
   TiRuntime runtime_{TI_NULL_HANDLE};
   TiComputeGraph compute_graph_{TI_NULL_HANDLE};
   std::list<std::string> arg_names_{};  // For stable addresses.
@@ -832,8 +837,28 @@ class ComputeGraph {
     return compute_graph_;
   }
 };
+template <typename T>
+struct DataTypeToEnum {
+  static constexpr TiDataType value = TI_DATA_TYPE_UNKNOWN;
+};
+#define DEFINE_DATA_TYPE_ENUM(type, enumv)                    \
+  template <>                                                 \
+  struct DataTypeToEnum<type> {                               \
+    static constexpr TiDataType value = TI_DATA_TYPE_##enumv; \
+  };
+
+DEFINE_DATA_TYPE_ENUM(int32_t, I32);
+DEFINE_DATA_TYPE_ENUM(float, F32);
+DEFINE_DATA_TYPE_ENUM(uint16_t, U16);
+DEFINE_DATA_TYPE_ENUM(int16_t, I16);
+DEFINE_DATA_TYPE_ENUM(uint8_t, U8);
+DEFINE_DATA_TYPE_ENUM(int8_t, I8);
+DEFINE_DATA_TYPE_ENUM(uint64_t, U64);
+DEFINE_DATA_TYPE_ENUM(int64_t, I64);
+#undef DEFINE_DATA_TYPE_ENUM
 
 class Kernel {
+ protected:
   TiRuntime runtime_{TI_NULL_HANDLE};
   TiKernel kernel_{TI_NULL_HANDLE};
   std::vector<TiArgument> args_{};
@@ -878,11 +903,12 @@ class Kernel {
   template <typename T>
   void push_arg(const std::vector<T> &v) {
     int idx = args_.size();
-    // Temporary workaround for setting vec/matrix arguments in a flattened way.
-    args_.resize(args_.size() + v.size());
-    for (int j = 0; j < v.size(); ++j) {
-      at(idx + j) = v[j];
-    }
+    args_.resize(idx + 1);
+    args_[idx].type = TI_ARGUMENT_TYPE_TENSOR;
+    std::memcpy(args_[idx].value.tensor.contents.data.x32, v.data(),
+                v.size() * sizeof(T));
+    args_[idx].value.tensor.contents.length = v.size();
+    args_[idx].value.tensor.type = DataTypeToEnum<T>::value;
   }
 
   template <typename T>
@@ -915,6 +941,7 @@ class Kernel {
 };
 
 class AotModule {
+ protected:
   TiRuntime runtime_{TI_NULL_HANDLE};
   TiAotModule aot_module_{TI_NULL_HANDLE};
   bool should_destroy_{false};
@@ -1155,6 +1182,7 @@ inline CapabilityLevelConfigBuilder CapabilityLevelConfig::builder() {
 }
 
 class Runtime {
+ protected:
   TiArch arch_{TI_ARCH_MAX_ENUM};
   TiRuntime runtime_{TI_NULL_HANDLE};
   bool should_destroy_{false};
