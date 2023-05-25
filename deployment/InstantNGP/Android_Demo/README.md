@@ -14,6 +14,7 @@ There's also performance optimization opportunities wrt Android deployment.
 2. Android Studio: https://developer.android.com/studio
 3. Android Studio - adb: https://developer.android.com/tools/adb
 4. Export ANDROID_NDK_ROOT and ANDROID_SDK_ROOT, for example:
+5. Install Ninja: `sudo apt-get update && sudo apt-get install ninja-build`
 ```
 export ANDROID_NDK_ROOT=~/Android/Sdk/ndk/25.1.8937393/
 export ANDROID_SDK_ROOT=~/Android/Sdk/
