@@ -200,7 +200,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "C_API_LIBRARY=${PROJECT_DIR}/c_api/lib/libtaichi_c_api.a\n\nif [ -e \"$C_API_LIBRARY\" ]; then\n    echo \"Found file $C_API_LIBRARY\"\nelse\n    C_API_LIBRARY_ZIP=${PROJECT_DIR}/taichi_c_api_ios_1_5_0.zip\n    unzip $C_API_LIBRARY_ZIP -d ${PROJECT_DIR}\nfi\n\n#python3 ${PROJECT_DIR}/../instant_ngp/assets/taichi_ngp.py --scene smh_lego --aot\n";
+			shellScript = "C_API_LIBRARY=${PROJECT_DIR}/c_api/lib/libtaichi_c_api.a\n\nif [ -e \"$C_API_LIBRARY\" ]; then\n    echo \"Found file $C_API_LIBRARY\"\nelse\n    C_API_LIBRARY_ZIP=${PROJECT_DIR}/taichi_c_api_ios_post20230523.zip\n    unzip $C_API_LIBRARY_ZIP -d ${PROJECT_DIR}\nfi\n\n#python3 ${PROJECT_DIR}/../instant_ngp/assets/taichi_ngp.py --scene smh_lego --aot\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
