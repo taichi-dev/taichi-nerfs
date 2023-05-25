@@ -605,17 +605,10 @@ def load_deployment_model(model_path):
         directions = np.stack([(x - cx) / fx, (y - cy) / fy, np.ones_like(x)], -1)
 
         return directions.reshape(-1, 3)
-
+    
     if model_path is None:
-        model_dir = os.path.dirname(__file__) + '/npy_models/'
-        if not os.path.exists(model_dir):
-            os.makedirs(model_dir)
-        npy_file = os.path.join(model_dir, 'smh_lego.npy')
-        if not os.path.exists(npy_file):
-            PRETRAINED_MODEL_URL = 'https://github.com/Linyou/taichi-ngp-renderer/releases/download/v0.1-models/{}.npy'
-            url = PRETRAINED_MODEL_URL.format('smh_lego')
-            wget.download(url, out=npy_file)
-        model_path = npy_file
+        print("Please specify your pretrain deployment model with --model_path={path_to_model}/deployment.npy")
+        assert False
     
     print(f'Loading model from {model_path}')
     model = np.load(model_path, allow_pickle=True).item()
