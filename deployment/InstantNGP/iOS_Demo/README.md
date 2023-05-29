@@ -66,7 +66,7 @@ Follow the instructions from: [How to train a deployable NGP model](../RetrainIn
 
 In the end, you will obtain a bunch of AOT files at `taichi_ngp/compiled`
 
-**Now copy the generated AOT files under `` to the same folder on your MacOS**
+**Now copy the generated AOT files under `taichi_ngp/compiled` to the same folder on your MacOS**
 
 4. [MacOS] Modify the width and height in C++ code if you've changed `--res_w` or `res_h`:
   * open `ViewController.mm` and modify the following lines:
