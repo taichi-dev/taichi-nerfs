@@ -35,12 +35,37 @@ def get_opts(prefix_args=None):
                         action='store_true',
                         default=False,
                         help='whether to use half optimization')
-    
+
     parser.add_argument('--encoder_type',
                         type=str,
                         default='hash',
                         choices=['hash', 'triplane'],
                         help='which encoder to use')
+
+    parser.add_argument('--sh_degree',
+                    type=int,
+                    default=2,
+                    help='degree of spherical harmonics')
+
+    parser.add_argument('--grid_size',
+                    type=int,
+                    default=256,
+                    help='size of voxel grid in each dimension')
+
+    parser.add_argument('--grid_radius',
+                type=float,
+                default=0.0125,
+                help='raidus of voxel grid points')
+
+    parser.add_argument('--origin_sh',
+                type=float,
+                default=0.,
+                help='origin value of sh coeffs in voxel grid')
+
+    parser.add_argument('--origin_sigma',
+                type=float,
+                default=0.1,
+                help='origin value of sigma in voxel grid')
 
     # loss parameters
     parser.add_argument('--distortion_loss_w',
@@ -81,6 +106,10 @@ def get_opts(prefix_args=None):
                         type=str,
                         default='exp',
                         help='experiment name')
+    parser.add_argument('--gpu',
+                        type=int,
+                        default=0,
+                        help='set cuda device')
     parser.add_argument(
         '--ckpt_path',
         type=str,
@@ -91,8 +120,7 @@ def get_opts(prefix_args=None):
         '--gui',
         action='store_true',
         default=False,
-        help='whether to show interactive GUI after training is done'
-    )
+        help='whether to show interactive GUI after training is done')
     # use deployment or not
     parser.add_argument('--deployment', action='store_true', default=False)
     parser.add_argument('--deployment_model_path', type=str, default="./")
