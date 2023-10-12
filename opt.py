@@ -25,6 +25,12 @@ def get_opts(prefix_args=None):
                         help='downsample factor (<=1.0) for the images')
 
     # model parameters
+    parser.add_argument('--model_name',
+                        type=str,
+                        default='ngp',
+                        choices=['ngp', 'svox'],
+                        help='which model to train/test')
+
     parser.add_argument(
         '--scale',
         type=float,

@@ -14,7 +14,7 @@ from datasets.ray_utils import get_rays
 from einops import rearrange
 from gui import NGPGUI
 from modules.distortion import distortion_loss
-from modules.networks import NGP, VoxelGrid
+from modules.networks import NGP, VoxelGrid, MODEL_DICT
 from modules.rendering import MAX_SAMPLES, render
 from modules.utils import depth2img, save_deployment_model
 from opt import get_opts
@@ -83,19 +83,42 @@ def main():
         data_range=1
     ).to(device)
 
-    model_config = {
-        'scale': hparams.scale,
-        'half_opt': hparams.half_opt,
-        'sh_degree': hparams.sh_degree,
-        'grid_size': hparams.grid_size,
-        'grid_radius': hparams.grid_radius,
-        'origin_sh': hparams.origin_sh,
-        'origin_sigma': hparams.origin_sigma
-    }
+    model_type = hparams.model_name
+    if model_type == 'ngp':
+        if hparams.deployment:
+            model_config = {
+                'scale': hparams.scale,
+                'pos_encoder_type': 'hash',
+                'levels': 4,
+                'feature_per_level': 4,
+                'base_res': 32,
+                'max_res': 128,
+                'log2_T': 21,
+                'xyz_net_width': 16,
+                'rgb_net_width': 16,
+                'rgb_net_depth': 1,
+            }
+        else:
+            model_config = {
+                'scale': hparams.scale,
+                'pos_encoder_type': hparams.encoder_type,
+                'max_res': 1024 if hparams.scale == 0.5 else 4096,
+                'half_opt': hparams.half_opt,
+            }
+    elif model_type == 'svox':
+        model_config = {
+            'scale': hparams.scale,
+            'half_opt': hparams.half_opt,
+            'sh_degree': hparams.sh_degree,
+            'grid_size': hparams.grid_size,
+            'grid_radius': hparams.grid_radius,
+            'origin_sh': hparams.origin_sh,
+            'origin_sigma': hparams.origin_sigma
+        }
 
     # model
     # model = NGP(**model_config).to(device)
-    model = VoxelGrid(**model_config).to(device)
+    model = MODEL_DICT[model_type](**model_config).to(device)
 
     # load checkpoint if ckpt path is provided
     if hparams.ckpt_path:

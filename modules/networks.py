@@ -520,18 +520,6 @@ class VoxelGrid(NGP):
     def normalize_samples(self, pts):
         return (pts- self.grid_normalized_coords.min(0)[0]) / self.grid_radius
 
-    def density(self, x):
-        """
-        Inputs:
-            x: (N, 3) xyz in [-scale, scale]
-        Outputs:
-            sigmas: (N)
-        """
-        normalized_idx = self.normalize_samples(x)
-        samples_result = self.query_grids(normalized_idx)
-        sigmas = samples_result[..., -1]
-        return sigmas
-
     def trilinear_interpolation(self, bundles, weight_a, weight_b):
         c00 = bundles[0] * weight_a[:, 2:] + bundles[1] * weight_b[:, 2:]
         c01 = bundles[2] * weight_a[:, 2:] + bundles[3] * weight_b[:, 2:]
@@ -573,13 +561,14 @@ class VoxelGrid(NGP):
 
         return query_results
 
-    def load(self, model_path):
-        pass
-
-    def save(self, model_path):
-        pass
 
     def forward(self, pts):
         normalized_idx = self.normalize_samples(pts)
         samples_result = self.query_grids(normalized_idx)
         return samples_result
+
+
+MODEL_DICT = {
+    'ngp': NGP,
+    'svox': VoxelGrid,
+}
