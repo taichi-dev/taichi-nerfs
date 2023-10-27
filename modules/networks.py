@@ -12,6 +12,7 @@ from .spherical_harmonics import DirEncoder
 from .triplane import TriPlaneEncoder
 from .utils import morton3D, morton3D_invert, packbits
 from .volume_train import VolumeRenderer
+from .sh_utils import eval_sh
 
 
 class TruncExp(torch.autograd.Function):
@@ -562,10 +563,16 @@ class VoxelGrid(NGP):
         return query_results
 
 
-    def forward(self, pts):
+    def forward(self, pts, dirs):
         normalized_idx = self.normalize_samples(pts)
         samples_result = self.query_grids(normalized_idx)
-        return samples_result
+        samples_sh, samples_density = samples_reuslt[..., :-1], samples_reuslt[..., -1]
+        samples_rgb = torch.empty((pts.shape(0), pts.shape(1), 3), device=samples_sh.device)
+        sh_dim = self.net.sh_dim
+        for i in range(3):
+            sh_coeffs = samples_sh[:, :, sh_dim*i:sh_dim*(i+1)]
+            samples_rgb[:, :, i] = eval_sh(self.sh_degree, sh_coeffs, viewdirs)
+        return samples_density, samples_rgb
 
 
 MODEL_DICT = {

@@ -126,14 +126,7 @@ def __render_rays_test(
         xyzs = ray_o_local + ts[:, None] * ray_d_local
         dirs = ray_d_local
 
-        # TODO: model forward
-        samples_reuslt = model(xyzs)
-        samples_sh, samples_density = samples_reuslt[..., :-1], samples_reuslt[..., -1]
-        # samples_rgb = torch.empty((N_rays, N_samples, 3), device=samples_sh.device)
-        # sh_dim = self.net.sh_dim
-        # for i in range(3):
-        #     sh_coeffs = samples_sh[:, :, sh_dim*i:sh_dim*(i+1)]
-        #     samples_rgb[:, :, i] = eval_sh(self.net.sh_degree, sh_coeffs, viewdirs)
+        sigmas, rgbs = model(xyzs, dirs)
 
         composite_test(
             sigmas,
@@ -204,15 +197,7 @@ def __render_rays_train(
         MAX_SAMPLES
     )
 
-    print(f"xyzs shape: {xyzs.shape}")
-    # TODO: model forward
-    samples_reuslt = model(xyzs)
-    samples_sh, samples_density = samples_reuslt[..., :-1], samples_reuslt[..., -1]
-    # samples_rgb = torch.empty((N_rays, N_samples, 3), device=samples_sh.device)
-    # sh_dim = self.net.sh_dim
-    # for i in range(3):
-    #     sh_coeffs = samples_sh[:, :, sh_dim*i:sh_dim*(i+1)]
-    #     samples_rgb[:, :, i] = eval_sh(self.net.sh_degree, sh_coeffs, viewdirs)
+    sigmas, rgbs = model(xyzs, dirs)
 
     (
         results['vr_samples'],
