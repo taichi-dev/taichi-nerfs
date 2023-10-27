@@ -59,8 +59,6 @@ def raymarching_train_kernel(
 
             idx = mip * grid_size3 + __morton3D(ti.cast(nxyz, ti.u32))
             occ = density_bitfield[ti.u32(idx // 8)] & (1 << ti.u32(idx % 8))
-            # print(f"idx: {idx}")
-            # print(f"occ: {occ}")
 
             if occ:
                 t += dt
@@ -119,7 +117,7 @@ def raymarching_train_kernel(
                 txyz = (((nxyz + 0.5 + 0.5 * ti.math.sign(ray_d)) *
                          grid_size_inv * 2 - 1) * mip_bound - xyz) * d_inv
 
-                t_target = t + ti.max(0, xyz.min())
+                t_target = t + ti.max(0, txyz.min())
                 t += calc_dt(t, exp_step_factor, grid_size, scale)
                 while t < t_target:
                     t += calc_dt(t, exp_step_factor, grid_size, scale)
