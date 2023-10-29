@@ -1,22 +1,19 @@
 from typing import Callable, Optional
 
-import torch
 import numpy as np
-from torch import nn
+import torch
 from einops import rearrange
 from kornia.utils.grid import create_meshgrid3d
+from torch import nn
 from torch.cuda.amp import custom_bwd, custom_fwd
 
-from .utils import (
-    morton3D, 
-    morton3D_invert, 
-    packbits, 
-)
-
 from .rendering import NEAR_DISTANCE
-from .triplane import TriPlaneEncoder
-from .volume_train import VolumeRenderer
 from .spherical_harmonics import DirEncoder
+from .triplane import TriPlaneEncoder
+from .utils import morton3D, morton3D_invert, packbits
+from .volume_train import VolumeRenderer
+from .sh_utils import eval_sh
+
 
 class TruncExp(torch.autograd.Function):
 
@@ -36,10 +33,10 @@ class TruncExp(torch.autograd.Function):
 class NGP(nn.Module):
 
     def __init__(
-            self, 
-            scale: float=0.5, 
+            self,
+            scale: float=0.5,
             # position encoder config
-            pos_encoder_type: str='hash', 
+            pos_encoder_type: str='hash',
             levels: int=16, # number of levels in hash table
             feature_per_level: int=2, # number of features per level
             log2_T: int=19, # maximum number of entries per level 2^19
@@ -80,9 +77,9 @@ class NGP(nn.Module):
         self.register_buffer(
             'grid_coords',
             create_meshgrid3d(
-                self.grid_size, 
-                self.grid_size, 
-                self.grid_size, 
+                self.grid_size,
+                self.grid_size,
+                self.grid_size,
                 False,
                 dtype=torch.int32
             ).reshape(-1, 3)
@@ -381,3 +378,204 @@ class MLP(nn.Module):
             x = self.output_layer(x)
             x = self.output_activation(x)
         return x
+
+class VoxelGrid(NGP):
+    def __init__(
+            self,
+            scale: float=0.5,
+            half_opt: bool=False, # whether to use half precision, available for hash
+            # grid configs
+            sh_degree: int=2,
+            grid_size: int=256,
+            grid_radius: float=0.0125,
+            origin_sh: float=0.,
+            origin_sigma: float=0.1,
+        ):
+        super().__init__()
+
+        self.sh_degree = sh_degree
+        self.grid_size = grid_size
+        self.grid_radius = grid_radius
+        self.scale = scale
+        self.origin_sh = origin_sh
+        self.origin_sigma = origin_sigma
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.sh_dim = (1 + self.sh_degree) ** 2
+        self.cascades = max(1 + int(np.ceil(np.log2(2 * self.scale))), 1)
+        self.register_buffer('center', torch.zeros(1, 3))
+        self.register_buffer('xyz_min', -torch.ones(1, 3) * scale)
+        self.register_buffer('xyz_max', torch.ones(1, 3) * scale)
+        self.register_buffer('half_size', (self.xyz_max - self.xyz_min) / 2)
+        self.register_buffer(
+            'density_bitfield',
+            torch.zeros(
+                self.cascades * self.grid_size**3 // 8,
+                dtype=torch.uint8
+            )
+        )
+
+        self.register_buffer(
+            'density_grid',
+            torch.zeros(self.cascades, self.grid_size**3),
+        )
+        self.register_buffer(
+            'grid_coords',
+            create_meshgrid3d(
+                self.grid_size,
+                self.grid_size,
+                self.grid_size,
+                False,
+                dtype=torch.int32
+            ).reshape(-1, 3)
+        )
+
+        # initialize the grids
+        self.initialize_grid()
+
+    def initialize_grid(self):
+        """
+        Initialize a voxel grid according to the configs
+
+        Params:
+            grid_normalized_coords: (sx * sy * sz, 3), normalized coordinates of the grids
+            grid_fields: (sx, sy, sz, sh_dim + 1), data fields(sh and density) of the grids
+        """
+        if isinstance(self.grid_size, float) or isinstance(self.grid_size, int):
+            grid_res = [self.grid_size] * 3
+        else:
+            grid_res = self.grid_size
+        assert len(grid_res) == 3, "grid resolution must be 3 dimension"
+        sx, sy, sz = grid_res[0], grid_res[1], grid_res[2]
+        gx_idxs, gy_idxs, gz_idsx= torch.arange(sx, device=self.device), \
+                                   torch.arange(sy, device=self.device), \
+                                   torch.arange(sz, device=self.device)
+        cx_idxs, cy_idxs, cz_idxs = torch.meshgrid(gx_idxs, gy_idxs, gz_idsx, indexing='ij')
+
+        # self.grid_idxs = create_meshgrid3d(grid_res[0], grid_res[1], grid_res[2], False, dtype=torch.int32).reshape(-1, 3)
+
+        # center grid
+        cx_idxs, cy_idxs, cz_idxs = cx_idxs - np.ceil(sx / 2) + 1, \
+                                    cy_idxs - np.ceil(sy / 2) + 1, \
+                                    cz_idxs - np.ceil(sz / 2) + 1
+
+        # edit grid spacing
+        cx, cy, cz = cx_idxs * self.grid_radius, cy_idxs * self.grid_radius, cz_idxs * self.grid_radius
+
+        grids = torch.stack([cx, cy, cz], dim=-1)
+        self.grid_normalized_coords = grids.reshape(sx * sy * sz, 3)
+
+        # initialize grid datas
+        self.sh_fields = nn.Parameter(
+            torch.ones(
+                (grids.shape[0],  grids.shape[1], grids.shape[2], self.sh_dim * 3),
+                dtype=torch.float32,
+                device=self.device
+            ) * self.origin_sh,
+            requires_grad=True,
+        )
+
+        self.density_fields = nn.Parameter(
+            torch.ones(
+                (grids.shape[0],  grids.shape[1], grids.shape[2], 1),
+                dtype=torch.float32,
+                device=self.device
+            ) * self.origin_sigma,
+            requires_grad=True,
+        )
+
+        self.grid_fields = torch.cat((self.sh_fields, self.density_fields), dim=3)
+
+    def out_of_grid(self, idx):
+        """
+        Checks if the given indices are out of bounds of the grid.
+
+        Inputs:
+            idx: (N, 3), the indices of the points to check
+        Outputs:
+            idx_valid_mask: (N, 1)
+
+        """
+        x_idx, y_idx, z_idx = idx.unbind(-1)
+
+        # find which points are outside the grid
+        sx, sy, sz, _ = self.grid_fields.shape
+        x_idx_valid = (x_idx < sx) & (x_idx >= 0)
+        y_idx_valid = (y_idx < sy) & (y_idx >= 0)
+        z_idx_valid = (z_idx < sz) & (z_idx >= 0)
+        idx_valid_mask = x_idx_valid & y_idx_valid & z_idx_valid
+
+        return idx_valid_mask
+
+    def fix_out_of_grid(self, idx):
+        x_idx, y_idx, z_idx = idx.unbind(-1)
+
+        # find which points are outside the grid
+        sx, sy, sz, _ = self.grid_fields.shape
+        x_idx %= sx
+        y_idx %= sy
+        z_idx %= sz
+
+        return x_idx, y_idx, z_idx
+
+    def normalize_samples(self, pts):
+        return (pts- self.grid_normalized_coords.min(0)[0]) / self.grid_radius
+
+    def trilinear_interpolation(self, bundles, weight_a, weight_b):
+        c00 = bundles[0] * weight_a[:, 2:] + bundles[1] * weight_b[:, 2:]
+        c01 = bundles[2] * weight_a[:, 2:] + bundles[3] * weight_b[:, 2:]
+        c10 = bundles[4] * weight_a[:, 2:] + bundles[5] * weight_b[:, 2:]
+        c11 = bundles[6] * weight_a[:, 2:] + bundles[7] * weight_b[:, 2:]
+        c0 = c00 * weight_a[:, 1:2] + c01 * weight_b[:, 1:2]
+        c1 = c10 * weight_a[:, 1:2] + c11 * weight_b[:, 1:2]
+        results = c0 * weight_a[:, :1] + c1 * weight_b[:, :1]
+
+        return results
+
+    def query_grids(self, idx, use_trilinear=False):
+        """
+        Query the grid fields at the given indices.
+
+        Input:
+            idx: (N, 3)
+            use_trilinear: bool, whether use trilinear interpolation
+
+        Outputs:
+            samples_results: (N, sh_dim + 1)
+        """
+        aligned_idx = torch.round(idx).to(torch.long)
+
+        idx_mask = self.out_of_grid(aligned_idx)
+        x_idx, y_idx, z_idx = self.fix_out_of_grid(aligned_idx)
+
+        query_results = self.grid_fields[x_idx, y_idx, z_idx]
+        query_results = query_results * idx_mask.unsqueeze(-1)  # zero the samples that are out of the grid
+
+        if use_trilinear:
+            weight_b = torch.abs(idx - aligned_idx)
+            weight_a = 1.0 - weight_b
+            query_sh, query_density = query_results[..., :-1], query_results[..., -1]
+            samples_density = self.trilinear_interpolation(query_density, weight_a, weight_b)
+            samples_sh = self.trilinear_interpolation(query_sh, weight_a, weight_b)
+            samples_result = torch.cat((samples_sh, samples_density), dim=3)
+            return samples_result
+
+        return query_results
+
+
+    def forward(self, pts, dirs):
+        normalized_idx = self.normalize_samples(pts)
+        samples_result = self.query_grids(normalized_idx)
+        samples_sh, samples_density = samples_reuslt[..., :-1], samples_reuslt[..., -1]
+        samples_rgb = torch.empty((pts.shape(0), pts.shape(1), 3), device=samples_sh.device)
+        sh_dim = self.net.sh_dim
+        for i in range(3):
+            sh_coeffs = samples_sh[:, :, sh_dim*i:sh_dim*(i+1)]
+            samples_rgb[:, :, i] = eval_sh(self.sh_degree, sh_coeffs, viewdirs)
+        return samples_density, samples_rgb
+
+
+MODEL_DICT = {
+    'ngp': NGP,
+    'svox': VoxelGrid,
+}

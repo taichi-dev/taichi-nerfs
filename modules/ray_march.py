@@ -2,9 +2,8 @@ import taichi as ti
 import torch
 from taichi.math import vec3
 
-from .utils import (
-    __morton3D, calc_dt, mip_from_dt, mip_from_pos, torch_type
-)
+from .utils import __morton3D, calc_dt, mip_from_dt, mip_from_pos, torch_type
+
 
 @ti.kernel
 def raymarching_train_kernel(
@@ -54,10 +53,10 @@ def raymarching_train_kernel(
 
             nxyz = ti.math.clamp(
                 0.5 * (xyz * mip_bound_inv + 1) * grid_size,
-                xmin=0.0, 
+                xmin=0.0,
                 xmax=grid_size - 1.0
             )
-            
+
             idx = mip * grid_size3 + __morton3D(ti.cast(nxyz, ti.u32))
             occ = density_bitfield[ti.u32(idx // 8)] & (1 << ti.u32(idx % 8))
 
@@ -95,7 +94,7 @@ def raymarching_train_kernel(
 
             nxyz = ti.math.clamp(
                 0.5 * (xyz * mip_bound_inv + 1) * grid_size,
-                xmin=0.0, 
+                xmin=0.0,
                 xmax=grid_size - 1.0
             )
 
@@ -125,14 +124,14 @@ def raymarching_train_kernel(
 
 
 def raymarching_train(
-        rays_o, 
-        rays_d, 
-        hits_t, 
-        density_bitfield, 
+        rays_o,
+        rays_d,
+        hits_t,
+        density_bitfield,
         cascades,
-        scale, 
-        exp_step_factor, 
-        grid_size, 
+        scale,
+        exp_step_factor,
+        grid_size,
         max_samples
     ):
     # noise to perturb the first sample of each ray
@@ -169,11 +168,11 @@ def raymarching_train(
     )
 
     raymarching_train_kernel(
-        rays_o.contiguous(), 
+        rays_o.contiguous(),
         rays_d.contiguous(),
         hits_t.contiguous(),
-        density_bitfield, 
-        noise, 
+        density_bitfield,
+        noise,
         counter,
         rays_a,
         xyzs,
@@ -185,7 +184,7 @@ def raymarching_train(
     )
 
     # total samples for all rays
-    total_samples = counter[0]  
+    total_samples = counter[0]
     # remove redundant output
     xyzs = xyzs[:total_samples]
     dirs = dirs[:total_samples]
@@ -241,7 +240,7 @@ def raymarching_test_kernel(
 
             nxyz = ti.math.clamp(
                 0.5 * (xyz * mip_bound_inv + 1) * grid_size,
-                xmin=0.0, 
+                xmin=0.0,
                 xmax=grid_size - 1.0
             )
 
@@ -269,8 +268,8 @@ def raymarching_test_kernel(
         samples_counter[n] = s
 
 def raymarching_test(
-    rays_o, 
-    rays_d, 
+    rays_o,
+    rays_d,
     hits_t,
     alive_indices,
     density_bitfield,
@@ -309,27 +308,27 @@ def raymarching_test(
     )
 
     raymarching_test_kernel(
-        rays_o.contiguous(), 
-        rays_d.contiguous(), 
-        hits_t.contiguous(), 
+        rays_o.contiguous(),
+        rays_d.contiguous(),
+        hits_t.contiguous(),
         alive_indices.contiguous(),
-        density_bitfield, 
-        cascades, 
-        grid_size, 
+        density_bitfield,
+        cascades,
+        grid_size,
         scale,
-        exp_step_factor, 
-        max_samples, 
+        exp_step_factor,
+        max_samples,
         ray_indices,
-        valid_mask, 
-        deltas, 
-        ts, 
+        valid_mask,
+        deltas,
+        ts,
         samples_counter
     )
     valid_mask = valid_mask.bool()
     cumsum = torch.cumsum(samples_counter, 0)
     packed_info = torch.stack([
-        cumsum - samples_counter, 
-        samples_counter], 
+        cumsum - samples_counter,
+        samples_counter],
         dim=-1,
     )
     return packed_info, ray_indices[valid_mask], deltas[valid_mask], ts[valid_mask]

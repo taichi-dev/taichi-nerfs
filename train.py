@@ -1,30 +1,26 @@
 import glob
 import os
-import time
-import tqdm
 import random
+import time
 import warnings
 
-import torch
 import imageio
 import numpy as np
 import taichi as ti
-from einops import rearrange
+import torch
 import torch.nn.functional as F
-
-from gui import NGPGUI
-from opt import get_opts
-from datasets import dataset_dict
+import tqdm
 from datasets.ray_utils import get_rays
-
-from modules.networks import NGP
+from einops import rearrange
+from gui import NGPGUI
 from modules.distortion import distortion_loss
+from modules.networks import NGP, VoxelGrid, MODEL_DICT
 from modules.rendering import MAX_SAMPLES, render
 from modules.utils import depth2img, save_deployment_model
+from opt import get_opts
+from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 
-from torchmetrics import (
-    PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
-)
+from datasets import dataset_dict
 
 warnings.filterwarnings("ignore")
 
@@ -47,6 +43,10 @@ def main():
 
     hparams = get_opts()
     taichi_init(hparams)
+
+    if hparams.gpu != -1:
+        os.environ['CUDA_VISIBLE_DEVICES'] = str(hparams.gpu)
+
 
     val_dir = 'results/'
 
@@ -83,29 +83,42 @@ def main():
         data_range=1
     ).to(device)
 
-    if hparams.deployment:
+    model_type = hparams.model_name
+    if model_type == 'ngp':
+        if hparams.deployment:
+            model_config = {
+                'scale': hparams.scale,
+                'pos_encoder_type': 'hash',
+                'levels': 4,
+                'feature_per_level': 4,
+                'base_res': 32,
+                'max_res': 128,
+                'log2_T': 21,
+                'xyz_net_width': 16,
+                'rgb_net_width': 16,
+                'rgb_net_depth': 1,
+            }
+        else:
+            model_config = {
+                'scale': hparams.scale,
+                'pos_encoder_type': hparams.encoder_type,
+                'max_res': 1024 if hparams.scale == 0.5 else 4096,
+                'half_opt': hparams.half_opt,
+            }
+    elif model_type == 'svox':
         model_config = {
             'scale': hparams.scale,
-            'pos_encoder_type': 'hash',
-            'levels': 4,
-            'feature_per_level': 4,
-            'base_res': 32,
-            'max_res': 128,
-            'log2_T': 21,
-            'xyz_net_width': 16,
-            'rgb_net_width': 16,
-            'rgb_net_depth': 1,
-        }
-    else:
-        model_config = {
-            'scale': hparams.scale,
-            'pos_encoder_type': hparams.encoder_type,
-            'max_res': 1024 if hparams.scale == 0.5 else 4096,
             'half_opt': hparams.half_opt,
+            'sh_degree': hparams.sh_degree,
+            'grid_size': hparams.grid_size,
+            'grid_radius': hparams.grid_radius,
+            'origin_sh': hparams.origin_sh,
+            'origin_sigma': hparams.origin_sigma
         }
 
     # model
-    model = NGP(**model_config).to(device)
+    # model = NGP(**model_config).to(device)
+    model = MODEL_DICT[model_type](**model_config).to(device)
 
     # load checkpoint if ckpt path is provided
     if hparams.ckpt_path:
@@ -115,11 +128,11 @@ def main():
 
     model.mark_invisible_cells(
         train_dataset.K,
-        train_dataset.poses, 
+        train_dataset.poses,
         train_dataset.img_wh,
     )
 
-    # use large scaler, the default scaler is 2**16 
+    # use large scaler, the default scaler is 2**16
     # TODO: investigate why the gradient is small
     if hparams.half_opt:
         scaler = 2**16
@@ -130,15 +143,15 @@ def main():
     try:
         import apex
         optimizer = apex.optimizers.FusedAdam(
-            model.parameters(), 
-            lr=hparams.lr, 
+            model.parameters(),
+            lr=hparams.lr,
             eps=1e-15,
         )
     except ImportError:
         print("Failed to import apex FusedAdam, use torch Adam instead.")
         optimizer = torch.optim.Adam(
-            model.parameters(), 
-            hparams.lr, 
+            model.parameters(),
+            hparams.lr,
             eps=1e-15,
         )
 
@@ -171,8 +184,8 @@ def main():
             rays_o, rays_d = get_rays(direction, pose)
             # render image
             results = render(
-                model, 
-                rays_o, 
+                model,
+                rays_o,
                 rays_d,
                 exp_step_factor=exp_step_factor,
             )
@@ -200,15 +213,15 @@ def main():
                 f"rays={len(data['rgb'])} | "
                 # ray marching samples per ray (occupied space on the ray)
                 f"rm_s={results['rm_samples'] / len(data['rgb']):.1f} | "
-                # volume rendering samples per ray 
+                # volume rendering samples per ray
                 # (stops marching when transmittance drops below 1e-4)
                 f"vr_s={results['vr_samples'] / len(data['rgb']):.1f} | "
             )
 
     if hparams.deployment:
         save_deployment_model(
-            model=model, 
-            dataset=train_dataset, 
+            model=model,
+            dataset=train_dataset,
             save_dir=hparams.deployment_model_path,
         )
 
@@ -240,8 +253,8 @@ def main():
                 rays_o, rays_d = get_rays(directions, poses)
                 # render image
                 results = render(
-                    model, 
-                    rays_o, 
+                    model,
+                    rays_o,
                     rays_d,
                     test_time=True,
                     exp_step_factor=exp_step_factor,
@@ -272,14 +285,14 @@ def main():
                     rearrange(results['depth'].cpu().numpy(), '(h w) -> h w', h=h))
                 imageio.imsave(
                     os.path.join(
-                        val_dir, 
+                        val_dir,
                         f'rgb_{test_idx:03d}.png'
                         ),
                     rgb_pred
                 )
                 imageio.imsave(
                     os.path.join(
-                        val_dir, 
+                        val_dir,
                         f'depth_{test_idx:03d}.png'
                     ),
                     depth
@@ -301,10 +314,10 @@ def main():
             read_meta=True,
         )
         NGPGUI(
-            hparams, 
-            model_config, 
-            dataset.K, 
-            dataset.img_wh, 
+            hparams,
+            model_config,
+            dataset.K,
+            dataset.img_wh,
             dataset.poses
         ).render()
 

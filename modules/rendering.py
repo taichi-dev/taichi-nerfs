@@ -1,8 +1,8 @@
 import torch
 from einops import rearrange
 
-from .ray_march import raymarching_test, raymarching_train
 from .intersection import ray_aabb_intersection
+from .ray_march import raymarching_test, raymarching_train
 from .volume_render_test import composite_test
 
 MAX_SAMPLES = 1024
@@ -11,11 +11,11 @@ NEAR_DISTANCE = 0.01
 
 def render(
     model,
-    rays_o, 
-    rays_d, 
+    rays_o,
+    rays_d,
     test_time=False,
-    exp_step_factor=0, 
-    T_threshold=1e-4, 
+    exp_step_factor=0,
+    T_threshold=1e-4,
     max_samples=MAX_SAMPLES,
 ):
     """
@@ -31,16 +31,16 @@ def render(
     """
 
     hits_t = ray_aabb_intersection(
-        rays_o.contiguous(), 
-        rays_d.contiguous(), 
+        rays_o.contiguous(),
+        rays_d.contiguous(),
         model.scale
     )
 
     if test_time:
         return __render_rays_test(
-            model, 
-            rays_o, 
-            rays_d, 
+            model,
+            rays_o,
+            rays_d,
             hits_t,
             exp_step_factor=exp_step_factor,
             T_threshold=T_threshold,
@@ -60,10 +60,10 @@ def render(
 
 @torch.no_grad()
 def __render_rays_test(
-    model, 
-    rays_o, 
-    rays_d, 
-    hits_t, 
+    model,
+    rays_o,
+    rays_d,
+    hits_t,
     exp_step_factor=0,
     T_threshold=1e-4,
     max_samples=MAX_SAMPLES,
@@ -108,15 +108,15 @@ def __render_rays_test(
             deltas,
             ts,
         ) = raymarching_test(
-            rays_o, 
-            rays_d, 
-            hits_t, 
+            rays_o,
+            rays_d,
+            hits_t,
             alive_indices,
-            model.density_bitfield, 
+            model.density_bitfield,
             model.cascades,
-            model.scale, 
+            model.scale,
             exp_step_factor,
-            model.grid_size, 
+            model.grid_size,
             N_samples
         )
         if ray_indices.shape[0] == 0:
@@ -129,19 +129,19 @@ def __render_rays_test(
         sigmas, rgbs = model(xyzs, dirs)
 
         composite_test(
-            sigmas, 
-            rgbs, 
-            deltas, 
-            ts, 
+            sigmas,
+            rgbs,
+            deltas,
+            ts,
             pack_info,
             alive_indices,
-            T_threshold, 
-            opacity, 
-            depth, 
+            T_threshold,
+            opacity,
+            depth,
             rgb
         )
         # remove converged rays
-        alive_indices = alive_indices[alive_indices >= 0]  
+        alive_indices = alive_indices[alive_indices >= 0]
         total_samples += pack_info[:, 1].sum()
 
     results['opacity'] = opacity
@@ -159,10 +159,10 @@ def __render_rays_test(
 
 
 def __render_rays_train(
-    model, 
-    rays_o, 
-    rays_d, 
-    hits_t, 
+    model,
+    rays_o,
+    rays_d,
+    hits_t,
     exp_step_factor=0,
     T_threshold=1e-4,
 ):
@@ -180,35 +180,35 @@ def __render_rays_train(
 
     (
         rays_a,
-        xyzs, 
+        xyzs,
         dirs,
-        results['deltas'], 
-        results['ts'], 
+        results['deltas'],
+        results['ts'],
         results['rm_samples']
     ) = raymarching_train(
         rays_o,
         rays_d,
-        hits_t, 
+        hits_t,
         model.density_bitfield,
-        model.cascades, 
+        model.cascades,
         model.scale,
-        exp_step_factor, 
-        model.grid_size, 
+        exp_step_factor,
+        model.grid_size,
         MAX_SAMPLES
     )
 
     sigmas, rgbs = model(xyzs, dirs)
 
     (
-        results['vr_samples'], 
+        results['vr_samples'],
         results['opacity'],
-        results['depth'], 
-        results['rgb'], 
+        results['depth'],
+        results['rgb'],
         results['ws']
     ) = model.render_func(
-        sigmas, 
-        rgbs, 
-        results['deltas'], 
+        sigmas,
+        rgbs,
+        results['deltas'],
         results['ts'],
         rays_a,
         T_threshold
@@ -216,10 +216,10 @@ def __render_rays_train(
 
     results['rays_a'] = rays_a
 
-    if exp_step_factor == 0: 
+    if exp_step_factor == 0:
         # synthetic
         rgb_bg = torch.ones(3, device=rays_o.device)
-    else: 
+    else:
         # real
         rgb_bg = torch.zeros(3, device=rays_o.device)
     results['rgb'] = results['rgb'] + \
