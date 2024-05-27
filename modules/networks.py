@@ -13,6 +13,7 @@ from .triplane import TriPlaneEncoder
 from .utils import morton3D, morton3D_invert, packbits
 from .volume_train import VolumeRenderer
 from .sh_utils import eval_sh
+from .interpolate3d import interpolate
 
 
 class TruncExp(torch.autograd.Function):
@@ -439,7 +440,8 @@ class VoxelGrid(NGP):
 
         Params:
             grid_normalized_coords: (sx * sy * sz, 3), normalized coordinates of the grids
-            grid_fields: (sx, sy, sz, sh_dim + 1), data fields(sh and density) of the grids
+            sh_fields: (sx, sy, sz, sh_dim), data fields(sh) of the grids
+            density_fields: (sx, sy, sz, 1), data fields(density) of the grids
         """
         if isinstance(self.grid_size, float) or isinstance(self.grid_size, int):
             grid_res = [self.grid_size] * 3
@@ -484,7 +486,7 @@ class VoxelGrid(NGP):
             requires_grad=True,
         )
 
-        self.grid_fields = torch.cat((self.sh_fields, self.density_fields), dim=3)
+        self.grid_shape = (grids.shape[0],  grids.shape[1], grids.shape[2])
 
     def out_of_grid(self, idx):
         """
@@ -499,7 +501,7 @@ class VoxelGrid(NGP):
         x_idx, y_idx, z_idx = idx.unbind(-1)
 
         # find which points are outside the grid
-        sx, sy, sz, _ = self.grid_fields.shape
+        sx, sy, sz = self.grid_shape
         x_idx_valid = (x_idx < sx) & (x_idx >= 0)
         y_idx_valid = (y_idx < sy) & (y_idx >= 0)
         z_idx_valid = (z_idx < sz) & (z_idx >= 0)
@@ -511,7 +513,7 @@ class VoxelGrid(NGP):
         x_idx, y_idx, z_idx = idx.unbind(-1)
 
         # find which points are outside the grid
-        sx, sy, sz, _ = self.grid_fields.shape
+        sx, sy, sz= self.grid_shape
         x_idx %= sx
         y_idx %= sy
         z_idx %= sz
@@ -520,17 +522,6 @@ class VoxelGrid(NGP):
 
     def normalize_samples(self, pts):
         return (pts- self.grid_normalized_coords.min(0)[0]) / self.grid_radius
-
-    def trilinear_interpolation(self, bundles, weight_a, weight_b):
-        c00 = bundles[0] * weight_a[:, 2:] + bundles[1] * weight_b[:, 2:]
-        c01 = bundles[2] * weight_a[:, 2:] + bundles[3] * weight_b[:, 2:]
-        c10 = bundles[4] * weight_a[:, 2:] + bundles[5] * weight_b[:, 2:]
-        c11 = bundles[6] * weight_a[:, 2:] + bundles[7] * weight_b[:, 2:]
-        c0 = c00 * weight_a[:, 1:2] + c01 * weight_b[:, 1:2]
-        c1 = c10 * weight_a[:, 1:2] + c11 * weight_b[:, 1:2]
-        results = c0 * weight_a[:, :1] + c1 * weight_b[:, :1]
-
-        return results
 
     def query_grids(self, idx, use_trilinear=False):
         """
@@ -548,31 +539,25 @@ class VoxelGrid(NGP):
         idx_mask = self.out_of_grid(aligned_idx)
         x_idx, y_idx, z_idx = self.fix_out_of_grid(aligned_idx)
 
-        query_results = self.grid_fields[x_idx, y_idx, z_idx]
-        query_results = query_results * idx_mask.unsqueeze(-1)  # zero the samples that are out of the grid
-
         if use_trilinear:
-            weight_b = torch.abs(idx - aligned_idx)
-            weight_a = 1.0 - weight_b
-            query_sh, query_density = query_results[..., :-1], query_results[..., -1]
-            samples_density = self.trilinear_interpolation(query_density, weight_a, weight_b)
-            samples_sh = self.trilinear_interpolation(query_sh, weight_a, weight_b)
-            samples_result = torch.cat((samples_sh, samples_density), dim=3)
-            return samples_result
+            samples_sh = interpolate(self.sh_fields.unsqueeze(0), idx.unsqueeze(0)).squeeze(0)
+            samples_density = interpolate(self.density_fields.unsqueeze(0), idx.unsqueeze(0)).squeeze(0)
+            return samples_sh, samples_density
 
-        return query_results
+        query_sh = self.sh_fields[x_idx, y_idx, z_idx] * idx_mask.unsqueeze(-1)  # zero the samples that are out of the grid
+        query_density = self.density_fields[x_idx, y_idx, z_idx] * idx_mask.unsqueeze(-1)  # zero the samples that are out of the grid
+        return query_sh, query_density
 
 
     def forward(self, pts, dirs):
         normalized_idx = self.normalize_samples(pts)
-        samples_result = self.query_grids(normalized_idx)
-        samples_sh, samples_density = samples_reuslt[..., :-1], samples_reuslt[..., -1]
-        samples_rgb = torch.empty((pts.shape(0), pts.shape(1), 3), device=samples_sh.device)
-        sh_dim = self.net.sh_dim
+        samples_sh, samples_density = self.query_grids(normalized_idx, use_trilinear=True)
+        samples_rgb = torch.empty((pts.shape[0], 3), device=samples_sh.device)
+        sh_dim = self.sh_dim
         for i in range(3):
-            sh_coeffs = samples_sh[:, :, sh_dim*i:sh_dim*(i+1)]
-            samples_rgb[:, :, i] = eval_sh(self.sh_degree, sh_coeffs, viewdirs)
-        return samples_density, samples_rgb
+            sh_coeffs = samples_sh[..., sh_dim*i:sh_dim*(i+1)]
+            samples_rgb[..., i] = eval_sh(self.sh_degree, sh_coeffs, dirs)
+        return samples_density.squeeze(-1), samples_rgb
 
 
 MODEL_DICT = {
